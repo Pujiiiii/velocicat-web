@@ -4,6 +4,8 @@ import WorkshopForm from "../components/WorkshopForm";
 import ImageCarousel from "../components/ImageCarousel";
 import EventCatalog from "../components/EventCatalog";
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   
   // Obtenim totes les dades necessàries de la base de dades
