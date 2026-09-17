@@ -1,0 +1,183 @@
+"use client";
+
+import { useState } from "react";
+import { supabase } from "../utils/supabase";
+
+export default function EventCatalog({ events, cars, bookings }: { events: any[], cars: any[], bookings: any[] }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedCar, setSelectedCar] = useState<any>(null);
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  const obrirModal = (event: any, car: any) => {
+    setSelectedEvent(event);
+    setSelectedCar(car);
+    setModalOpen(true);
+    setStatus("idle");
+    setName("");
+    setPhone("");
+  };
+
+  const ferReserva = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("loading");
+
+    const { data: customerData, error: customerError } = await supabase
+      .from("customers")
+      .insert([{ name, phone }])
+      .select()
+      .single();
+
+    if (customerError) {
+      setStatus("error");
+      return;
+    }
+
+    const { error: bookingError } = await supabase
+      .from("event_bookings")
+      .insert([{
+        event_id: selectedEvent.id,
+        car_id: selectedCar.id,
+        customer_id: customerData.id,
+        status: "pendent"
+      }]);
+
+    if (bookingError) {
+      setStatus("error");
+      return;
+    }
+
+    setStatus("success");
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
+  };
+
+  return (
+    <section id="calendari" className="py-24 bg-gray-100 border-t-2 border-gray-200 relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-black uppercase text-gray-900 italic">Pròxims Rallys</h2>
+          <div className="w-24 h-2 bg-yellow-400 mx-auto mt-4"></div>
+          <p className="mt-4 text-gray-600 font-medium">Tria la teva propera cursa i reserva la teva màquina.</p>
+        </div>
+
+        <div className="flex flex-col gap-12">
+          {events && events.length > 0 ? (
+            events.map((event) => {
+              
+              // FILTRE: Només agafem els cotxes que estiguin dins de la llista "assigned_cars" d'aquest event.
+              // Convertim tots els IDs a Text (String) perquè coincideixin sempre.
+              const assignedCarsIds = event.assigned_cars || [];
+              const eventCars = cars?.filter((car) => 
+                assignedCarsIds.map((id: any) => String(id)).includes(String(car.id))
+              ) || [];
+
+              return (
+                <div key={event.id} className="bg-white rounded-2xl shadow-xl overflow-hidden border-t-8 border-gray-900">
+                  <div className="bg-gray-900 text-white p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-3xl font-black italic uppercase text-yellow-400">{event.name}</h3>
+                      <p className="text-gray-300 font-medium mt-1 flex items-center gap-2">
+                        Del {new Date(event.start_date).toLocaleDateString()} al {new Date(event.end_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-6 md:p-8">
+                    <h4 className="text-lg font-bold uppercase text-gray-700 mb-6">Cotxes Disponibles:</h4>
+                    
+                    {eventCars.length === 0 ? (
+                      <div className="bg-gray-50 p-6 rounded-xl border-2 border-dashed border-gray-200 text-center">
+                        <p className="text-gray-500 font-bold uppercase">De moment no s'ha assignat cap vehicle de la flota per aquesta prova.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {eventCars.map((car) => {
+                          const isBooked = bookings?.some((b) => b.event_id === event.id && b.car_id === car.id);
+                          const isMaintenance = car.status === 'manteniment';
+                          const isAvailable = !isBooked && !isMaintenance;
+
+                          return (
+                            <div key={car.id} className={`flex flex-col border-2 rounded-xl p-4 transition-all ${isAvailable ? 'border-gray-200 bg-white shadow-sm hover:border-yellow-400' : 'border-red-100 bg-red-50 opacity-80'}`}>
+                              <div className="flex gap-4 items-center mb-4">
+                                {car.photos && car.photos.length > 0 ? (
+                                  <img src={car.photos[0]} alt={car.model} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                                ) : (
+                                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-400">Sense foto</div>
+                                )}
+                                <div>
+                                  <h5 className="font-black text-gray-900 uppercase italic leading-tight">{car.model}</h5>
+                                  <div className="mt-1 flex flex-col items-start gap-1">
+                                    <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">{car.fia_group}</span>
+                                    <span className="text-gray-700 font-bold text-sm">{car.daily_rate}€ / cursa</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-auto">
+                                {isAvailable ? (
+                                  <button onClick={() => obrirModal(event, car)} className="w-full py-3 bg-yellow-400 text-red-700 font-black uppercase rounded shadow hover:bg-yellow-500 transition-colors">
+                                    Sol·licitar Reserva
+                                  </button>
+                                ) : isMaintenance ? (
+                                  <div className="w-full py-3 bg-gray-300 text-gray-600 font-bold uppercase rounded text-center text-sm">En Manteniment</div>
+                                ) : (
+                                  <div className="w-full py-3 bg-red-200 text-red-800 font-bold uppercase rounded text-center text-sm">Ocupat (Reservat)</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-12 bg-white rounded-lg shadow">
+              <p className="text-xl font-bold text-gray-500">De moment no hi ha cap rally programat.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* QUADRE DE DIÀLEG DE RESERVA */}
+      {modalOpen && selectedEvent && selectedCar && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[100]">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full border-t-8 border-yellow-400 relative">
+            <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-red-600 font-bold">X</button>
+            <h3 className="text-2xl font-black italic uppercase mb-2 text-gray-900">Sol·licitud de Reserva</h3>
+            <p className="text-gray-600 mb-6 font-medium">Estàs a punt de sol·licitar el <span className="font-bold text-gray-900">{selectedCar.model}</span> per al <span className="font-bold text-gray-900">{selectedEvent.name}</span>.</p>
+            
+            {status === "success" ? (
+              <div className="bg-green-100 text-green-800 p-4 rounded text-center font-bold uppercase">
+                Sol·licitud rebuda! Actualitzant disponibilitat...
+              </div>
+            ) : (
+              <form onSubmit={ferReserva} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 uppercase mb-1">El teu Nom</label>
+                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full border-2 border-gray-300 rounded px-4 py-3 focus:border-red-600 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Telèfon de Contacte</label>
+                  <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border-2 border-gray-300 rounded px-4 py-3 focus:border-red-600 outline-none" />
+                </div>
+                {status === "error" && <p className="text-red-600 font-bold text-sm">Hi ha hagut un error en enviar la sol·licitud.</p>}
+                
+                <button disabled={status === "loading"} type="submit" className="mt-4 w-full py-4 bg-gray-900 text-white font-black uppercase rounded shadow hover:bg-yellow-400 hover:text-red-700 transition-colors">
+                  {status === "loading" ? "Enviant..." : "Confirmar Sol·licitud"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
