@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return NextResponse.json({ error: "Sessió no vàlida." }, { status: 401 });
 
+  if (user.app_metadata?.role !== "admin") {
+    return NextResponse.json({ error: "Accés denegat." }, { status: 403 });
+  }
+
   const formData = await request.formData();
   const image = formData.get("image");
   if (!(image instanceof File)) return NextResponse.json({ error: "Falta la imatge." }, { status: 400 });
