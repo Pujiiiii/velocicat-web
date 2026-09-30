@@ -104,7 +104,7 @@ export default function AdminPage() {
   const pujarFotosImgBB = async () => {
     if (!arxiusFotos || arxiusFotos.length === 0) return [];
     const urls: string[] = [];
-    const apiKey = '27f18adce6bbd809cff8482c45293fd1'; 
+ 
     
     for (let i = 0; i < arxiusFotos.length; i++) {
       const formData = new FormData();
@@ -112,7 +112,7 @@ export default function AdminPage() {
       // S'ha eliminat l'expiració perquè les fotos siguin PERMANENTS
       
       try {
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, { method: 'POST', body: formData });
+        const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.data && data.data.url) urls.push(data.data.url);
       } catch (e) {
