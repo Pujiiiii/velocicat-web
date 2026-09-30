@@ -2,28 +2,38 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://velocicat.cat"),
-  title: { default: "VelociCAT | Lloguer de cotxes de rally", template: "%s | VelociCAT" },
-  description: "Lloguer de vehicles de rally preparats per competir. Descobreix la flota VelociCAT i consulta el calendari de curses.",
+  title: {
+    default: "VelociCAT | Escuderia de rally",
+    template: "%s | VelociCAT",
+  },
+  description:
+    "VelociCAT Racing Team: escuderia de rally, pilots, vehicles, calendari, resultats i lloguer de cotxes de competició.",
+  keywords: [
+    "VelociCAT",
+    "rally",
+    "escuderia",
+    "rally Catalunya",
+    "cotxes rally",
+    "lloguer cotxes rally",
+  ],
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "ca_ES",
     siteName: "VelociCAT",
-    title: "VelociCAT | Lloguer de cotxes de rally",
-    description: "Vehicles de pura raça preparats per devorar el crono al proper rally.",
+    title: "VelociCAT | Escuderia de rally",
+    description: "Competició, pilots, màquines i passió pel rally.",
   },
-  twitter: { card: "summary_large_image", title: "VelociCAT | Lloguer de cotxes de rally" },
+  twitter: {
+    card: "summary_large_image",
+    title: "VelociCAT | Escuderia de rally",
+    description: "Competició, pilots, màquines i passió pel rally.",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
