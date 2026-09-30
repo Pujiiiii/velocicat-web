@@ -171,7 +171,7 @@ export default async function Home() {
               className="overflow-hidden rounded-2xl bg-gray-950 text-white"
             >
               {d.photo_url ? (
-                <img src={d.photo_url} alt={d.name} className="h-64 w-full object-cover" />
+                <img src={d.photo_url} alt={d.name} loading="lazy" decoding="async" className="h-64 w-full object-cover" />
               ) : (
                 <div className="h-64 bg-gray-800" />
               )}
@@ -253,6 +253,8 @@ export default async function Home() {
                     <img
                       src={s.logo_url}
                       alt={s.name}
+                      loading="lazy"
+                      decoding="async"
                       className="h-14 max-w-40 object-contain grayscale hover:grayscale-0"
                     />
                   ) : (
