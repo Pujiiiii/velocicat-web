@@ -1,6 +1,2 @@
-import type { MetadataRoute } from "next";
-
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://velocicat.cat").replace(/\/$/, "");
-  return [{ url: baseUrl, changeFrequency: "weekly", priority: 1 }];
-}
+import type {MetadataRoute} from "next";import {supabase} from "../utils/supabase";
+export default async function sitemap():Promise<MetadataRoute.Sitemap>{const base=(process.env.NEXT_PUBLIC_SITE_URL||"https://velocicat.cat").replace(/\/$/,"");const routes=["/","/escuderia","/pilots","/flota","/rallys","/resultats","/noticies","/galeria","/patrocinadors","/contacte"];const [{data:pilots},{data:news},{data:cars},{data:events}]=await Promise.all([supabase.from("drivers").select("slug").eq("published",true),supabase.from("news_posts").select("slug,published_at").eq("published",true),supabase.from("rally_cars").select("id"),supabase.from("rally_events").select("id")]);return [...routes.map(url=>({url:base+url,changeFrequency:"weekly" as const,priority:url==="/" ? 1:.7})),...(pilots||[]).map(x=>({url:base+"/pilots/"+x.slug,changeFrequency:"monthly" as const,priority:.6})),...(news||[]).map(x=>({url:base+"/noticies/"+x.slug,lastModified:x.published_at||undefined,changeFrequency:"monthly" as const,priority:.6})),...(cars||[]).map(x=>({url:base+"/flota/"+x.id,changeFrequency:"weekly" as const,priority:.6})),...(events||[]).map(x=>({url:base+"/rallys/"+x.id,changeFrequency:"weekly" as const,priority:.7}))];}
