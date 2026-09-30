@@ -11,7 +11,7 @@ export default async function Home() {
   // Obtenim totes les dades necessàries de la base de dades
   const { data: cars } = await supabase.from('rally_cars').select('*');
   const { data: events } = await supabase.from('rally_events').select('*').order('start_date', { ascending: true });
-  const { data: bookings } = await supabase.from('event_bookings').select('*');
+  const { data: bookings } = await supabase.rpc('get_public_booking_status');
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
