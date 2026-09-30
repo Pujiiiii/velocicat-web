@@ -47,7 +47,12 @@ export async function POST(request: NextRequest) {
   const image = formData.get("image");
   if (!(image instanceof File)) return NextResponse.json({ error: "Falta la imatge." }, { status: 400 });
   if (!ALLOWED_TYPES.has(image.type)) return NextResponse.json({ error: "Format no admès." }, { status: 415 });
-  if (image.size === 0 || image.size > MAX_BYTES) return NextResponse.json({ error: "La imatge ha de pesar menys de 8 MB." }, { status: 413 });\n\n  const header = new Uint8Array(await image.slice(0, 32).arrayBuffer());\n  if (!matchesMagicBytes(image.type, header)) {\n    return NextResponse.json({ error: "El contingut de la imatge no coincideix amb el format declarat." }, { status: 415 });\n  }
+  if (image.size === 0 || image.size > MAX_BYTES) return NextResponse.json({ error: "La imatge ha de pesar menys de 8 MB." }, { status: 413 });
+
+  const header = new Uint8Array(await image.slice(0, 32).arrayBuffer());
+  if (!matchesMagicBytes(image.type, header)) {
+    return NextResponse.json({ error: "El contingut de la imatge no coincideix amb el format declarat." }, { status: 415 });
+  }
 
   const upload = new FormData();
   upload.append("image", image);
