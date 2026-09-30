@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../utils/supabase";
 
 export default function EventCatalog({ events, cars, bookings }: { events: any[], cars: any[], bookings: any[] }) {
+  const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedCar, setSelectedCar] = useState<any>(null);
@@ -40,9 +42,6 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
     }
 
     setStatus("success");
-    setTimeout(() => {
-      window.location.reload();
-    }, 2000);
     } catch (error) {
       console.error("Error creant reserva:", error);
       setStatus("error");
@@ -144,8 +143,18 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
             <p className="text-gray-600 mb-6 font-medium">Estàs a punt de sol·licitar el <span className="font-bold text-gray-900">{selectedCar.model}</span> per al <span className="font-bold text-gray-900">{selectedEvent.name}</span>.</p>
 
             {status === "success" ? (
-              <div role="status" aria-live="polite" className="bg-green-100 text-green-800 p-4 rounded text-center font-bold uppercase">
-                Sol·licitud rebuda! Actualitzant disponibilitat...
+              <div role="status" aria-live="polite" className="bg-green-100 text-green-900 p-5 rounded-xl">
+                <p className="text-center font-black uppercase">Sol·licitud rebuda!</p>
+                <p className="mt-2 text-sm text-center">Hem registrat la teva sol·licitud per al rally. Aquí tens el resum:</p>
+                <dl className="mt-4 space-y-2 text-sm">
+                  <div className="flex justify-between gap-4"><dt className="font-bold">Rally</dt><dd className="text-right">{selectedEvent.name}</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="font-bold">Vehicle</dt><dd className="text-right">{selectedCar.model}</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="font-bold">Preu</dt><dd className="text-right">{selectedCar.daily_rate}€ / cursa</dd></div>
+                </dl>
+                <p className="mt-4 text-xs text-center">La disponibilitat s’actualitzarà en tancar aquest resum.</p>
+                <button type="button" onClick={() => { setModalOpen(false); router.refresh(); }} className="mt-5 w-full py-3 bg-gray-900 text-white font-black uppercase rounded hover:bg-yellow-400 hover:text-red-700 transition-colors">
+                  Tancar i actualitzar disponibilitat
+                </button>
               </div>
             ) : (
               <form onSubmit={ferReserva} className="flex flex-col gap-4">
