@@ -25,9 +25,10 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
     e.preventDefault();
     setStatus("loading");
 
+    try {
     const { error } = await supabase.rpc("create_rally_booking", {
-      p_name: name,
-      p_phone: phone,
+      p_name: name.trim(),
+      p_phone: phone.trim(),
       p_event_id: selectedEvent.id,
       p_car_id: selectedCar.id,
     });
@@ -42,6 +43,10 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
     setTimeout(() => {
       window.location.reload();
     }, 2000);
+    } catch (error) {
+      console.error("Error creant reserva:", error);
+      setStatus("error");
+    }
   };
 
   return (
@@ -90,7 +95,7 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                             <div key={car.id} className={`flex flex-col border-2 rounded-xl p-4 transition-all ${isAvailable ? "border-gray-200 bg-white shadow-sm hover:border-yellow-400" : "border-red-100 bg-red-50 opacity-80"}`}>
                               <div className="flex gap-4 items-center mb-4">
                                 {car.photos && car.photos.length > 0 ? (
-                                  <img src={car.photos[0]} alt={car.model} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                                  <img src={car.photos[0]} alt={car.model} loading="lazy" decoding="async" className="w-20 h-20 object-cover rounded-lg shadow-sm" />
                                 ) : (
                                   <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-400">Sense foto</div>
                                 )}
@@ -132,27 +137,27 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
       </div>
 
       {modalOpen && selectedEvent && selectedCar && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[100]">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full border-t-8 border-yellow-400 relative">
-            <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-red-600 font-bold">X</button>
-            <h3 className="text-2xl font-black italic uppercase mb-2 text-gray-900">Sol·licitud de Reserva</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[100]" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="booking-dialog-title" className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full border-t-8 border-yellow-400 relative">
+            <button type="button" aria-label="Tancar la sol·licitud de reserva" onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-red-600 font-bold">Tancar</button>
+            <h3 id="booking-dialog-title" className="text-2xl font-black italic uppercase mb-2 text-gray-900">Sol·licitud de Reserva</h3>
             <p className="text-gray-600 mb-6 font-medium">Estàs a punt de sol·licitar el <span className="font-bold text-gray-900">{selectedCar.model}</span> per al <span className="font-bold text-gray-900">{selectedEvent.name}</span>.</p>
 
             {status === "success" ? (
-              <div className="bg-green-100 text-green-800 p-4 rounded text-center font-bold uppercase">
+              <div role="status" aria-live="polite" className="bg-green-100 text-green-800 p-4 rounded text-center font-bold uppercase">
                 Sol·licitud rebuda! Actualitzant disponibilitat...
               </div>
             ) : (
               <form onSubmit={ferReserva} className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 uppercase mb-1">El teu Nom</label>
-                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full border-2 border-gray-300 rounded px-4 py-3 focus:border-red-600 outline-none" />
+                  <label htmlFor="booking-name" className="block text-sm font-bold text-gray-700 uppercase mb-1">El teu nom</label>
+                  <input id="booking-name" type="text" required minLength={2} maxLength={100} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} className="w-full border-2 border-gray-300 rounded px-4 py-3 focus:border-red-600 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Telèfon de Contacte</label>
-                  <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border-2 border-gray-300 rounded px-4 py-3 focus:border-red-600 outline-none" />
+                  <label htmlFor="booking-phone" className="block text-sm font-bold text-gray-700 uppercase mb-1">Telèfon de contacte</label>
+                  <input id="booking-phone" type="tel" required minLength={6} maxLength={30} autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border-2 border-gray-300 rounded px-4 py-3 focus:border-red-600 outline-none" />
                 </div>
-                {status === "error" && <p className="text-red-600 font-bold text-sm">Hi ha hagut un error en enviar la sol·licitud.</p>}
+                {status === "error" && <p role="alert" className="text-red-600 font-bold text-sm">Hi ha hagut un error en enviar la sol·licitud.</p>}
 
                 <button disabled={status === "loading"} type="submit" className="mt-4 w-full py-4 bg-gray-900 text-white font-black uppercase rounded shadow hover:bg-yellow-400 hover:text-red-700 transition-colors">
                   {status === "loading" ? "Enviant..." : "Confirmar Sol·licitud"}
