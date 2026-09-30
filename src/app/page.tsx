@@ -237,12 +237,12 @@ export default async function Home() {
         </div>
       </section>
 
-      {sponsors?.length > 0 && (
+      {(sponsors || []).length > 0 && (
         <section className="border-t py-14">
           <div className="mx-auto max-w-7xl px-4 text-center">
             <p className="font-black uppercase text-gray-500">Amb el suport de</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-10">
-              {sponsors.map((s: any) => (
+              {(sponsors || []).map((s: any) => (
                 <a
                   key={s.id}
                   href={s.website_url || "#"}
