@@ -7,6 +7,7 @@ export default function AdminPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [session, setSession] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
@@ -34,21 +35,27 @@ export default function AdminPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
+      const admin = session?.user?.app_metadata?.role === "admin";
       setSession(session);
+      setIsAdmin(admin);
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const admin = session?.user?.app_metadata?.role === "admin";
+      setSession(session);
+      setIsAdmin(admin);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (session) {
+    if (session && isAdmin) {
       carregarCites();
       carregarCotxes();
       carregarEsdeveniments();
-      carregarReserves(); 
+      carregarReserves();
     }
-  }, [session]);
+  }, [session, isAdmin]);
 
   // --- CITES ---
   const carregarCites = async () => {
@@ -104,7 +111,7 @@ export default function AdminPage() {
   const pujarFotosImgBB = async () => {
     if (!arxiusFotos || arxiusFotos.length === 0) return [];
     const urls: string[] = [];
-    const apiKey = '27f18adce6bbd809cff8482c45293fd1'; 
+ 
     
     for (let i = 0; i < arxiusFotos.length; i++) {
       const formData = new FormData();
@@ -112,11 +119,16 @@ export default function AdminPage() {
       // S'ha eliminat l'expiració perquè les fotos siguin PERMANENTS
       
       try {
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, { method: 'POST', body: formData });
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('Cal iniciar sessió per pujar imatges.');
+        const res = await fetch('/api/upload-image', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` }, body: formData });
         const data = await res.json();
-        if (data.data && data.data.url) urls.push(data.data.url);
+        if (!res.ok) throw new Error(data?.error || "No s'ha pogut pujar la imatge.");
+        if (typeof data?.url !== "string") throw new Error("Resposta d'upload invàlida.");
+        urls.push(data.url);
       } catch (e) {
         console.error("Error pujant imatge", e);
+        setError(e instanceof Error ? e.message : "Error desconegut pujant una imatge.");
       }
     }
     return urls;
@@ -216,6 +228,27 @@ export default function AdminPage() {
   const handleLogout = async () => { await supabase.auth.signOut(); };
 
   if (loading && !session) return <div className="min-h-screen flex items-center justify-center font-bold text-xl">Carregant...</div>;
+
+  if (session && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border-t-8 border-red-600 text-center">
+          <h1 className="text-3xl font-black italic text-gray-900 uppercase mb-4">
+            Accés <span className="text-red-600">Denegat</span>
+          </h1>
+          <p className="text-gray-600 font-medium mb-6">
+            Aquest panell està restringit a usuaris administradors.
+          </p>
+          <button
+            onClick={handleLogout}
+            className="w-full py-3 bg-gray-900 text-white font-black uppercase rounded shadow hover:bg-gray-800"
+          >
+            Tancar Sessió
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!session) {
     return (
