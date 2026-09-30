@@ -11,7 +11,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
-  const [cites, setCites] = useState<any[]>([]);
   const [cotxes, setCotxes] = useState<any[]>([]);
   const [esdeveniments, setEsdeveniments] = useState<any[]>([]);
   
@@ -50,28 +49,11 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (session && isAdmin) {
-      carregarCites();
       carregarCotxes();
       carregarEsdeveniments();
       carregarReserves();
     }
   }, [session, isAdmin]);
-
-  // --- CITES ---
-  const carregarCites = async () => {
-    const { data } = await supabase.from('workshop_appointments').select('*, customers(name, phone)').order('date', { ascending: false });
-    if (data) setCites(data);
-  };
-  const actualitzarEstatCita = async (id: number, nouEstat: string) => {
-    await supabase.from('workshop_appointments').update({ status: nouEstat }).eq('id', id);
-    carregarCites(); 
-  };
-  const eliminarCita = async (id: number) => {
-    if(confirm("Segur que vols eliminar aquesta cita?")) {
-      await supabase.from('workshop_appointments').delete().eq('id', id);
-      carregarCites();
-    }
-  };
 
   // --- FLOTA ---
   const carregarCotxes = async () => {
@@ -278,36 +260,8 @@ export default function AdminPage() {
 
       <main className="max-w-7xl mx-auto p-6 mt-6">
         
-        {/* FILA SUPERIOR: FLOTA (Taller amagat temporament) */}
+        {/* FILA SUPERIOR: FLOTA */}
         <div className="mb-8">
-          
-          {/* === CITES TALLER AMAGADES TEMPORALMENT === 
-          <div className="bg-white p-6 rounded-xl shadow-lg border-t-8 border-red-600 flex flex-col h-[650px]">
-            <h3 className="text-2xl font-black italic uppercase mb-4 text-gray-800">Cites del Taller</h3>
-            <div className="overflow-y-auto flex-grow pr-2">
-              {cites.map((cita) => (
-                <div key={cita.id} className="mb-4 p-4 border-2 border-gray-100 rounded-lg bg-gray-50">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="font-bold text-lg text-gray-900">{cita.customers?.name}</h4>
-                      <p className="text-sm text-gray-600 font-medium font-mono">{cita.customers?.phone}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded text-xs font-black uppercase ${cita.status === 'pendent' ? 'bg-yellow-200 text-yellow-800' : cita.status === 'acceptada' ? 'bg-green-200 text-green-800' : 'bg-gray-300 text-gray-800'}`}>{cita.status}</span>
-                  </div>
-                  <p className="text-gray-700 text-sm mb-4">{cita.issue_description}</p>
-                  <div className="flex gap-2">
-                    {cita.status === 'pendent' && <button onClick={() => actualitzarEstatCita(cita.id, 'acceptada')} className="flex-1 bg-gray-900 text-white text-xs font-bold uppercase py-2 rounded hover:bg-green-600 transition-colors">Acceptar</button>}
-                    {cita.status !== 'completada' && <button onClick={() => actualitzarEstatCita(cita.id, 'completada')} className="flex-1 bg-gray-200 text-gray-800 text-xs font-bold uppercase py-2 rounded hover:bg-gray-300 transition-colors">Completar</button>}
-                    <button onClick={() => eliminarCita(cita.id)} className="bg-red-100 text-red-600 px-3 py-2 rounded hover:bg-red-200 transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          */}
-          
           <div className="bg-white p-6 rounded-xl shadow-lg border-t-8 border-yellow-400 flex flex-col h-[650px]">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-black italic uppercase text-gray-800">La Flota</h3>

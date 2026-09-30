@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { supabase } from "../utils/supabase";
-import WorkshopForm from "../components/WorkshopForm";
 import ImageCarousel from "../components/ImageCarousel";
 import EventCatalog from "../components/EventCatalog";
 
@@ -23,7 +22,6 @@ export default async function Home() {
             VELOCI<span className="text-yellow-400">CAT</span>
           </div>
           <nav className="hidden md:flex space-x-8 font-bold text-gray-700 uppercase tracking-wide">
-            {/* <Link href="#taller" className="hover:text-red-600 transition-colors">Taller</Link> */}
             <Link href="#flota" className="hover:text-red-600 transition-colors">La Flota</Link>
             <Link href="#calendari" className="hover:text-red-600 transition-colors">Reserves Rally</Link>
           </nav>
@@ -43,9 +41,6 @@ export default async function Home() {
               Vehicles de pura raça preparats per devorar el crono al proper rally.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
-              {/* <Link href="#taller" className="px-8 py-4 bg-yellow-400 text-red-700 font-black uppercase tracking-wider rounded shadow-lg hover:bg-yellow-300 transition-transform hover:scale-105 text-center">
-                Demana Cita (Taller)
-              </Link> */}
               <Link href="#calendari" className="px-8 py-4 bg-white text-red-600 font-black uppercase tracking-wider rounded shadow-lg hover:bg-gray-100 transition-transform hover:scale-105 border-2 border-transparent hover:border-red-600 text-center">
                 Calendari de Curses
               </Link>
@@ -53,40 +48,14 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* SECCIÓ DIVISIÓ DE SERVEIS */}
-        <section id="taller" className="py-20 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-black uppercase text-gray-900 italic">Què necessites?</h2>
-              <div className="w-24 h-2 bg-yellow-400 mx-auto mt-4"></div>
-            </div>
-            
-            <div className="grid md:grid-cols-1 gap-12 max-w-3xl mx-auto">
-              
-              {/* === SECCIÓ TALLER AMAGADA TEMPORALMENT === 
-              <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-8 border-red-600 flex flex-col h-full">
-                <div className="p-10 text-center flex-grow flex flex-col">
-                  <h3 className="text-3xl font-black text-red-600 uppercase italic mb-4">Taller Mecànic</h3>
-                  <p className="text-gray-600 mb-6 font-medium">
-                    Manteniment, revisions, preparació i reparacions generals. Tractem el teu cotxe de diari amb la mateixa exigència que un cotxe de competició.
-                  </p>
-                  <div className="mt-auto">
-                    <WorkshopForm />
-                  </div>
-                </div>
-              </div>
-              */}
-
-              <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-8 border-gray-900 flex flex-col h-full">
-                <div className="p-10 text-center flex-grow flex flex-col">
-                  <h3 className="text-3xl font-black text-gray-900 uppercase italic mb-4">Lloguer de Rally</h3>
-                  <p className="text-gray-600 mb-8 font-medium text-lg">
-                    Vehicles preparats segons normativa FIA, revisats peça a peça després de cada cursa. Llestos per pujar i córrer.
-                  </p>
-                  <Link href="#calendari" className="mt-auto inline-block px-6 py-4 bg-gray-900 text-white font-bold uppercase rounded hover:bg-yellow-400 hover:text-red-700 transition-colors w-full text-lg">
-                    Veure Calendari i Reserves
-                  </Link>
-                </div>
+        {/* SECCIÓ DE SERVEIS */}
+        <section className="py-20 bg-gray-50">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-8 border-gray-900 flex flex-col">
+              <div className="p-10 text-center flex-grow flex flex-col">
+                <h2 className="text-3xl font-black text-gray-900 uppercase italic mb-4">Lloguer de Rally</h2>
+                <p className="text-gray-600 mb-8 font-medium text-lg">Vehicles preparats segons normativa FIA, revisats peça a peça després de cada cursa. Llestos per pujar i córrer.</p>
+                <Link href="#calendari" className="inline-block px-6 py-4 bg-gray-900 text-white font-bold uppercase rounded hover:bg-yellow-400 hover:text-red-700 transition-colors w-full text-lg">Veure Calendari i Reserves</Link>
               </div>
             </div>
           </div>
