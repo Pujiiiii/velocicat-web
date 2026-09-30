@@ -254,7 +254,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-100 pb-12">
       <header className="bg-gray-900 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
-        <div className="text-xl font-black italic uppercase">VelociCAT <span className="text-yellow-400">Admin</span></div>
+        <div className="text-xl font-black italic uppercase">VelociCAT <span className="text-yellow-400">Admin</span></div><a href="/admin/content" className="ml-4 rounded bg-yellow-400 px-3 py-2 text-xs font-black uppercase text-red-700">CMS Escuderia</a>
         <button onClick={handleLogout} className="px-4 py-2 bg-red-600 hover:bg-red-700 font-bold rounded text-sm uppercase">Tancar Sessió</button>
       </header>
 
