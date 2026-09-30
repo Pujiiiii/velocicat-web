@@ -116,9 +116,12 @@ export default function AdminPage() {
         if (!session?.access_token) throw new Error('Cal iniciar sessió per pujar imatges.');
         const res = await fetch('/api/upload-image', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` }, body: formData });
         const data = await res.json();
-        if (data.data && data.data.url) urls.push(data.data.url);
+        if (!res.ok) throw new Error(data?.error || "No s'ha pogut pujar la imatge.");
+        if (typeof data?.url !== "string") throw new Error("Resposta d'upload invàlida.");
+        urls.push(data.url);
       } catch (e) {
         console.error("Error pujant imatge", e);
+        setError(e instanceof Error ? e.message : "Error desconegut pujant una imatge.");
       }
     }
     return urls;
