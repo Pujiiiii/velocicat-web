@@ -1,0 +1,6 @@
+export type RallyCar={id:number;model:string;fia_group:string;daily_rate:number;status:string;photos:string[]};
+export type Driver={id:number;name:string;slug:string;number:string|null;role:string;bio:string|null;photo_url:string|null;car_id:number|null;championship:string|null;season:number|null;social_url:string|null;published:boolean};
+export type RallyResult={id:number;season:number;category:string|null;overall_position:number|null;category_position:number|null;status:string;time:string|null;gap:string|null;summary:string|null;event_id:number|null;driver_id:number|null;car_id:number|null};
+export type NewsPost={id:number;title:string;slug:string;excerpt:string|null;content:string|null;cover_image:string|null;category:string;published:boolean;published_at:string|null};
+export type Sponsor={id:number;name:string;logo_url:string|null;website_url:string|null;tier:string;description:string|null;sort_order:number};
+export type GalleryItem={id:number;title:string|null;image_url:string;caption:string|null;category:string;event_id:number|null;season:number|null};
