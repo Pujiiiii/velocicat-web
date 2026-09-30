@@ -112,7 +112,9 @@ export default function AdminPage() {
       // S'ha eliminat l'expiració perquè les fotos siguin PERMANENTS
       
       try {
-        const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('Cal iniciar sessió per pujar imatges.');
+        const res = await fetch('/api/upload-image', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` }, body: formData });
         const data = await res.json();
         if (data.data && data.data.url) urls.push(data.data.url);
       } catch (e) {
