@@ -71,12 +71,26 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`, {
       method: "POST", body: upload, signal: AbortSignal.timeout(20_000),
     });
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
     if (!response.ok || !result?.data?.url) {
-      return NextResponse.json({ error: "No s'ha pogut pujar la imatge." }, { status: 502 });
+      const providerMessage = typeof result?.error?.message === "string"
+        ? result.error.message
+        : typeof result?.status_txt === "string"
+          ? result.status_txt
+          : "";
+      console.error("ImgBB upload failed", {
+        status: response.status,
+        message: providerMessage || "Unknown provider error",
+      });
+      return NextResponse.json({
+        error: providerMessage
+          ? `ImgBB: ${providerMessage}`
+          : `No s'ha pogut pujar la imatge (servei d'imatges, codi ${response.status}).`,
+      }, { status: 502 });
     }
     return NextResponse.json({ url: result.data.url });
-  } catch {
-    return NextResponse.json({ error: "El servei d'imatges no respon." }, { status: 502 });
+  } catch (error) {
+    console.error("ImgBB upload request failed", error);
+    return NextResponse.json({ error: "El servei d'imatges no respon. Torna-ho a provar." }, { status: 502 });
   }
 }
