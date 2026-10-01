@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 const MAX_BYTES = 8 * 1024 * 1024;
+const BUCKET = "cms-images";
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 
 function matchesMagicBytes(type: string, bytes: Uint8Array) {
@@ -23,6 +24,13 @@ function matchesMagicBytes(type: string, bytes: Uint8Array) {
   return false;
 }
 
+function extensionFor(type: string) {
+  if (type === "image/jpeg") return "jpg";
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  return "avif";
+}
+
 export async function POST(request: NextRequest) {
   const authorization = request.headers.get("authorization");
   const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
@@ -30,8 +38,7 @@ export async function POST(request: NextRequest) {
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const apiKey = process.env.IMGBB_API_KEY;
-  if (!supabaseUrl || !anonKey || !apiKey) {
+  if (!supabaseUrl || !anonKey) {
     return NextResponse.json({ error: "Configuració del servidor incompleta." }, { status: 500 });
   }
 
@@ -43,7 +50,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Accés denegat." }, { status: 403 });
   }
 
-  // Reject obviously oversized requests before parsing multipart data.
   const contentLength = Number(request.headers.get("content-length") || 0);
   if (contentLength > MAX_BYTES + 256 * 1024) {
     return NextResponse.json({ error: "La imatge ha de pesar menys de 8 MB." }, { status: 413 });
@@ -55,42 +61,45 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "La petició d'imatge no és vàlida." }, { status: 400 });
   }
+
   const image = formData.get("image");
   if (!(image instanceof File)) return NextResponse.json({ error: "Falta la imatge." }, { status: 400 });
   if (!ALLOWED_TYPES.has(image.type)) return NextResponse.json({ error: "Format no admès." }, { status: 415 });
-  if (image.size === 0 || image.size > MAX_BYTES) return NextResponse.json({ error: "La imatge ha de pesar menys de 8 MB." }, { status: 413 });
+  if (image.size === 0 || image.size > MAX_BYTES) {
+    return NextResponse.json({ error: "La imatge ha de pesar menys de 8 MB." }, { status: 413 });
+  }
 
   const header = new Uint8Array(await image.slice(0, 32).arrayBuffer());
   if (!matchesMagicBytes(image.type, header)) {
     return NextResponse.json({ error: "El contingut de la imatge no coincideix amb el format declarat." }, { status: 415 });
   }
 
-  const upload = new FormData();
-  upload.append("image", image);
-  try {
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`, {
-      method: "POST", body: upload, signal: AbortSignal.timeout(20_000),
+  const path = `admin/${crypto.randomUUID()}.${extensionFor(image.type)}`;
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, image, {
+      contentType: image.type,
+      cacheControl: "31536000",
+      upsert: false,
     });
-    const result = await response.json().catch(() => null);
-    if (!response.ok || !result?.data?.url) {
-      const providerMessage = typeof result?.error?.message === "string"
-        ? result.error.message
-        : typeof result?.status_txt === "string"
-          ? result.status_txt
-          : "";
-      console.error("ImgBB upload failed", {
-        status: response.status,
-        message: providerMessage || "Unknown provider error",
-      });
-      return NextResponse.json({
-        error: providerMessage
-          ? `ImgBB: ${providerMessage}`
-          : `No s'ha pogut pujar la imatge (servei d'imatges, codi ${response.status}).`,
-      }, { status: 502 });
-    }
-    return NextResponse.json({ url: result.data.url });
-  } catch (error) {
-    console.error("ImgBB upload request failed", error);
-    return NextResponse.json({ error: "El servei d'imatges no respon. Torna-ho a provar." }, { status: 502 });
+
+  if (uploadError) {
+    console.error("Supabase Storage upload failed", {
+      message: uploadError.message,
+      path,
+      type: image.type,
+      size: image.size,
+    });
+    return NextResponse.json({
+      error: `No s'ha pogut desar la imatge a Supabase Storage: ${uploadError.message}`,
+    }, { status: 502 });
   }
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  if (!data?.publicUrl) {
+    console.error("Supabase Storage public URL missing", { path });
+    return NextResponse.json({ error: "La imatge s'ha pujat però no s'ha pogut obtenir la URL pública." }, { status: 502 });
+  }
+
+  return NextResponse.json({ url: data.publicUrl });
 }
