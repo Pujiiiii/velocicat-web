@@ -43,3 +43,9 @@ execute function public.prevent_private_car_booking();
 
 comment on column public.rally_cars.ownership is
   'Propietat del vehicle: escuderia o particular. Els particulars no es poden llogar.';
+
+
+-- El BMW 330d forma part de la flota com a vehicle particular.
+update public.rally_cars
+set ownership = 'particular', daily_rate = 0
+where lower(trim(model)) = lower('BMW 330d');
