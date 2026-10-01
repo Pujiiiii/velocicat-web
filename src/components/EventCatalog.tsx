@@ -87,8 +87,8 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {eventCars.map((car) => {
                           const isBooked = bookings?.some((b) => String(b.event_id) === String(event.id) && String(b.car_id) === String(car.id));
-                          const isMaintenance = car.status === "manteniment";
-                          const isAvailable = !isBooked && !isMaintenance;
+                          const isMaintenance = car.status === "manteniment";\n                          const isPrivate = car.ownership === "particular";
+                          const isAvailable = !isBooked && !isMaintenance && !isPrivate;
 
                           return (
                             <div key={car.id} className={`flex flex-col border-2 rounded-xl p-4 transition-all ${isAvailable ? "border-gray-200 bg-white shadow-sm hover:border-yellow-400" : "border-red-100 bg-red-50 opacity-80"}`}>
@@ -102,7 +102,7 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                                   <h5 className="font-black text-gray-900 uppercase italic leading-tight">{car.model}</h5>
                                   <div className="mt-1 flex flex-col items-start gap-1">
                                     <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">{car.fia_group}</span>
-                                    <span className="text-gray-700 font-bold text-sm">{car.daily_rate}€ / cursa</span>
+                                    {isPrivate ? <span className="text-gray-500 font-bold text-sm">Vehicle particular · no disponible per lloguer</span> : <span className="text-gray-700 font-bold text-sm">{car.daily_rate}€ / cursa</span>}
                                   </div>
                                 </div>
                               </div>
@@ -112,7 +112,7 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                                   <button onClick={() => obrirModal(event, car)} className="w-full py-3 bg-yellow-400 text-red-700 font-black uppercase rounded shadow hover:bg-yellow-500 transition-colors">
                                     Sol·licitar Reserva
                                   </button>
-                                ) : isMaintenance ? (
+                                ) : isPrivate ? (<div className="w-full py-3 bg-gray-200 text-gray-600 font-bold uppercase rounded text-center text-sm">Vehicle particular · només participació</div>) : isMaintenance ? (
                                   <div className="w-full py-3 bg-gray-300 text-gray-600 font-bold uppercase rounded text-center text-sm">En Manteniment</div>
                                 ) : (
                                   <div className="w-full py-3 bg-red-200 text-red-800 font-bold uppercase rounded text-center text-sm">Ocupat (Reservat)</div>
