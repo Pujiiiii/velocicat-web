@@ -27,7 +27,7 @@ export default function Page() {
   }
 
   const fieldClass =
-    "mb-4 w-full rounded px-4 py-3 text-gray-900";
+    "mb-4 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-500 shadow-sm focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400";
 
   return (
     <div className="min-h-screen bg-white text-gray-950">
