@@ -43,7 +43,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Accés denegat." }, { status: 403 });
   }
 
-  const formData = await request.formData();
+  // Reject obviously oversized requests before parsing multipart data.
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > MAX_BYTES + 256 * 1024) {
+    return NextResponse.json({ error: "La imatge ha de pesar menys de 8 MB." }, { status: 413 });
+  }
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "La petició d'imatge no és vàlida." }, { status: 400 });
+  }
   const image = formData.get("image");
   if (!(image instanceof File)) return NextResponse.json({ error: "Falta la imatge." }, { status: 400 });
   if (!ALLOWED_TYPES.has(image.type)) return NextResponse.json({ error: "Format no admès." }, { status: 415 });
