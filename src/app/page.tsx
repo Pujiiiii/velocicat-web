@@ -230,7 +230,7 @@ export default async function Home() {
               >
                 <p className="text-xs font-black uppercase text-red-600">{c.fia_group}</p>
                 <h3 className="mt-2 text-xl font-black italic uppercase">{c.model}</h3>
-                <p className="mt-3 font-bold">{c.daily_rate}€ / cursa</p>
+                {c.ownership==="particular"?<p className="mt-3 font-bold text-gray-500">Vehicle particular · no disponible per lloguer</p>:<p className="mt-3 font-bold">{c.daily_rate}€ / cursa</p>}
               </Link>
             ))}
           </div>
