@@ -27,10 +27,10 @@ export default function Page() {
   }
 
   const fieldClass =
-    "mb-4 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-950 placeholder:text-gray-500 shadow-sm focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400";
+    "mb-4 w-full rounded px-4 py-3 text-gray-900";
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-white text-gray-950">
       <header className="bg-black px-4 py-5">
         <Link href="/" className="font-black italic text-white">
           ← VELOCI<span className="text-yellow-400">CAT</span>
@@ -39,11 +39,11 @@ export default function Page() {
 
       <main className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:py-16 md:grid-cols-2 md:gap-12">
         <section className="self-center">
-          <p className="font-black uppercase tracking-widest text-red-400">Parlem</p>
-          <h1 className="mt-2 text-4xl font-black italic uppercase text-white sm:text-5xl">
+          <p className="font-black uppercase tracking-widest text-red-600">Parlem</p>
+          <h1 className="mt-2 text-4xl font-black italic uppercase sm:text-5xl">
             Contacte
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-gray-200">
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-gray-600">
             Reserves, competició, patrocinis, premsa o qualsevol consulta relacionada amb
             VelociCAT.
           </p>
@@ -51,7 +51,7 @@ export default function Page() {
 
         <form
           onSubmit={submit}
-          className="rounded-2xl border border-gray-700 bg-gray-900 p-5 text-white shadow-xl sm:p-7"
+          className="rounded-2xl bg-gray-950 p-5 text-white shadow-xl sm:p-7"
         >
           <label htmlFor="contact-name" className="sr-only">Nom</label>
           <input
@@ -122,7 +122,7 @@ export default function Page() {
           <button
             type="submit"
             disabled={state === "loading"}
-            className="w-full rounded-lg bg-yellow-400 px-4 py-4 font-black uppercase text-gray-950 transition hover:bg-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded bg-yellow-400 py-4 font-black uppercase text-red-700"
           >
             {state === "loading" ? "Enviant..." : "Enviar missatge"}
           </button>
