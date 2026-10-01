@@ -42,7 +42,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Configuració del servidor incompleta." }, { status: 500 });
   }
 
-  const supabase = createClient(supabaseUrl, anonKey);
+  const supabase = createClient(supabaseUrl, anonKey, {
+    global: {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  });
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return NextResponse.json({ error: "Sessió no vàlida." }, { status: 401 });
 
