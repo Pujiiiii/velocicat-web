@@ -122,7 +122,7 @@ export default function AdminPage() {
     setPujantFotos(true);
     const novesUrls = await pujarFotosImgBB();
     const fotosFinals = [...formCotxe.photos, ...novesUrls];
-    const dadesAGuardar = { ...formCotxe, photos: fotosFinals };
+    const dadesAGuardar = { ...formCotxe, daily_rate: formCotxe.ownership === "particular" ? 0 : formCotxe.daily_rate, photos: fotosFinals };
     
     if (cotxeEditant) await supabase.from('rally_cars').update(dadesAGuardar).eq('id', cotxeEditant.id);
     else await supabase.from('rally_cars').insert([dadesAGuardar]);
