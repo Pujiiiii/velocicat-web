@@ -19,8 +19,8 @@ export default function AdminPage() {
   // ESTATS MODAL COTXES
   const [mostrarModalCotxe, setMostrarModalCotxe] = useState(false);
   const [cotxeEditant, setCotxeEditant] = useState<any>(null);
-  const [formCotxe, setFormCotxe] = useState<{model: string, fia_group: string, daily_rate: string, status: string, photos: string[]}>({ 
-    model: "", fia_group: "", daily_rate: "", status: "disponible", photos: [] 
+  const [formCotxe, setFormCotxe] = useState<{model: string, fia_group: string, daily_rate: string, status: string, ownership: string, photos: string[]}>({ 
+    model: "", fia_group: "", daily_rate: "", status: "disponible", ownership: "escuderia", photos: [] 
   });
   const [arxiusFotos, setArxiusFotos] = useState<FileList | null>(null);
   const [pujantFotos, setPujantFotos] = useState(false);
@@ -62,13 +62,13 @@ export default function AdminPage() {
   };
   const obrirModalNouCotxe = () => {
     setCotxeEditant(null);
-    setFormCotxe({ model: "", fia_group: "", daily_rate: "", status: "disponible", photos: [] });
+    setFormCotxe({model:"",fia_group:"",daily_rate:"",status:"disponible",ownership:"escuderia",photos:[]});
     setArxiusFotos(null);
     setMostrarModalCotxe(true);
   };
   const obrirModalEditarCotxe = (cotxe: any) => {
     setCotxeEditant(cotxe);
-    setFormCotxe({ model: cotxe.model, fia_group: cotxe.fia_group, daily_rate: cotxe.daily_rate, status: cotxe.status, photos: cotxe.photos || [] });
+    setFormCotxe({ model: cotxe.model, fia_group: cotxe.fia_group, daily_rate: cotxe.daily_rate, status: cotxe.status, ownership: cotxe.ownership || "escuderia", photos: cotxe.photos || [] });
     setArxiusFotos(null);
     setMostrarModalCotxe(true);
   };
@@ -116,13 +116,13 @@ export default function AdminPage() {
     return urls;
   };
   const guardarCotxe = async () => {
-    if (!formCotxe.model || !formCotxe.fia_group || !formCotxe.daily_rate) {
+    if (!formCotxe.model || !formCotxe.fia_group || (formCotxe.ownership === "escuderia" && !formCotxe.daily_rate)) {
       alert("Omple tots els camps."); return;
     }
     setPujantFotos(true);
     const novesUrls = await pujarFotosImgBB();
     const fotosFinals = [...formCotxe.photos, ...novesUrls];
-    const dadesAGuardar = { ...formCotxe, photos: fotosFinals };
+    const dadesAGuardar = { ...formCotxe, daily_rate: formCotxe.ownership === "particular" ? 0 : formCotxe.daily_rate, photos: fotosFinals };
     
     if (cotxeEditant) await supabase.from('rally_cars').update(dadesAGuardar).eq('id', cotxeEditant.id);
     else await supabase.from('rally_cars').insert([dadesAGuardar]);
@@ -381,7 +381,7 @@ export default function AdminPage() {
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Preu</label>
-                  <input type="number" value={formCotxe.daily_rate} onChange={(e) => setFormCotxe({...formCotxe, daily_rate: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2 outline-none" />
+                  <select value={formCotxe.ownership} onChange={(e) => setFormCotxe({ ...formCotxe, ownership: e.target.value })} className="w-full border-2 border-gray-300 rounded px-4 py-3"><option value="escuderia">Propietat de l'escuderia</option><option value="particular">Vehicle particular</option></select><input type="number" value={formCotxe.daily_rate} onChange={(e) => setFormCotxe({...formCotxe, daily_rate: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2 outline-none" />
                 </div>
               </div>
 
