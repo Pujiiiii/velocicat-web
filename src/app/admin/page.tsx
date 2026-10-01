@@ -62,7 +62,7 @@ export default function AdminPage() {
   };
   const obrirModalNouCotxe = () => {
     setCotxeEditant(null);
-    setFormCotxe({ model: "", fia_group: "", daily_rate: "", status: "disponible", photos: [] });
+    setFormCotxe({model:"",fia_group:"",daily_rate:"",status:"disponible",ownership:"escuderia",photos:[]});
     setArxiusFotos(null);
     setMostrarModalCotxe(true);
   };
