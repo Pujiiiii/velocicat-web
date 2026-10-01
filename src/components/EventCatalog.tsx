@@ -87,7 +87,8 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {eventCars.map((car) => {
                           const isBooked = bookings?.some((b) => String(b.event_id) === String(event.id) && String(b.car_id) === String(car.id));
-                          const isMaintenance = car.status === "manteniment";\n                          const isPrivate = car.ownership === "particular";
+                          const isMaintenance = car.status === "manteniment";
+                          const isPrivate = car.ownership === "particular";
                           const isAvailable = !isBooked && !isMaintenance && !isPrivate;
 
                           return (
