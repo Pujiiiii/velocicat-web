@@ -276,7 +276,7 @@ export default function AdminPage() {
                     <div>
                       <h4 className="font-bold text-xl text-gray-900 italic uppercase">{cotxe.model}</h4>
                       <span className="bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold uppercase">{cotxe.fia_group}</span>
-                      <div className="ml-2 text-gray-600 font-bold text-xs">Rally: {cotxe.daily_rate} € · Sprint/costa: {cotxe.sprint_rate ?? 0} €</div>
+                      <div className="ml-2 text-gray-600 font-bold text-xs">Rally: {cotxe.daily_rate} € · Rally-sprint / Pujada en costa: {cotxe.sprint_rate ?? 0} €</div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => obrirModalEditarCotxe(cotxe)} className="text-gray-500 hover:text-blue-600 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
@@ -393,9 +393,9 @@ export default function AdminPage() {
                     <label className="mt-2 flex items-center gap-2 text-sm font-bold text-gray-700"><input type="checkbox" checked={formCotxe.rentable_rally} onChange={(e) => setFormCotxe({...formCotxe, rentable_rally: e.target.checked})} /> Disponible per a rallys</label>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Preu per a sprint/costa (€ / cursa)</label>
+                    <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Preu per a rally-sprint i Pujada en costa (€ / cursa)</label>
                     <input type="number" min="0" step="0.01" value={formCotxe.sprint_rate} onChange={(e) => setFormCotxe({...formCotxe, sprint_rate: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2 outline-none" />
-                    <label className="mt-2 flex items-center gap-2 text-sm font-bold text-gray-700"><input type="checkbox" checked={formCotxe.rentable_sprint} onChange={(e) => setFormCotxe({...formCotxe, rentable_sprint: e.target.checked})} /> Disponible per a rally-sprint i pujades en costa</label>
+                    <label className="mt-2 flex items-center gap-2 text-sm font-bold text-gray-700"><input type="checkbox" checked={formCotxe.rentable_sprint} onChange={(e) => setFormCotxe({...formCotxe, rentable_sprint: e.target.checked})} /> Disponible per a rally-sprint i Pujada en costa</label>
                   </div>
                 </div>
               ) : <p className="text-sm text-gray-600">Els vehicles particulars no es poden llogar.</p>}

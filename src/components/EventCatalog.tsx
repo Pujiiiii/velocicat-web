@@ -119,7 +119,7 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                                 ) : isPrivate ? (<div className="w-full py-3 bg-gray-200 text-gray-600 font-bold uppercase rounded text-center text-sm">Vehicle particular · només participació</div>) : isMaintenance ? (
                                   <div className="w-full py-3 bg-gray-300 text-gray-600 font-bold uppercase rounded text-center text-sm">En Manteniment</div>
                                 ) : (
-                                  <div className="w-full py-3 bg-red-200 text-red-800 font-bold uppercase rounded text-center text-sm">Ocupat (Reservat)</div>
+                                  <div className="w-full py-3 bg-red-200 text-red-800 font-bold uppercase rounded text-center text-sm">Ocupat o no disponible per aquesta modalitat</div>
                                 )}
                               </div>
                             </div>
@@ -151,7 +151,7 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                 <p className="text-center font-black uppercase">Sol·licitud rebuda!</p>
                 <p className="mt-2 text-sm text-center">Hem registrat la teva sol·licitud per a l’esdeveniment. Aquí tens el resum:</p>
                 <dl className="mt-4 space-y-2 text-sm">
-                  <div className="flex justify-between gap-4"><dt className="font-bold">Rally</dt><dd className="text-right">{selectedEvent.name}</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="font-bold">{selectedEvent.event_type === "rally_sprint" ? "Rally-sprint" : selectedEvent.event_type === "pujada_costa" ? "Pujada en costa" : "Rally"}</dt><dd className="text-right">{selectedEvent.name}</dd></div>
                   <div className="flex justify-between gap-4"><dt className="font-bold">Vehicle</dt><dd className="text-right">{selectedCar.model}</dd></div>
                   <div className="flex justify-between gap-4"><dt className="font-bold">Preu</dt><dd className="text-right">{(selectedEvent.event_type === "rally" ? selectedCar.daily_rate : selectedCar.sprint_rate)}€ / cursa</dd></div>
                 </dl>
