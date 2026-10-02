@@ -219,24 +219,6 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {cars?.map((c: any) => (
-              <Link
-                key={c.id}
-                href={"/flota/" + c.id}
-                className="rounded-2xl border p-5"
-              >
-                <p className="text-xs font-black uppercase text-red-600">{c.fia_group}</p>
-                <h3 className="mt-2 text-xl font-black italic uppercase">{c.model}</h3>
-                {c.ownership==="particular"?<p className="mt-3 font-bold text-gray-500">Vehicle particular · no disponible per lloguer</p>:<p className="mt-3 font-bold">{c.daily_rate}€ / cursa</p>}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {(sponsors || []).length > 0 && (
         <section className="border-t py-14">
           <div className="mx-auto max-w-7xl px-4 text-center">
