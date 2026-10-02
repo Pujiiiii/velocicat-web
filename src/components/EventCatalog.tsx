@@ -48,6 +48,9 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
     }
   };
 
+  const avui = new Date().toISOString().slice(0, 10);
+  const properesEvents = (events || []).filter((event) => event.end_date >= avui);
+
   return (
     <section id="calendari" className="py-24 bg-gray-100 border-t-2 border-gray-200 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -58,8 +61,8 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
         </div>
 
         <div className="flex flex-col gap-12">
-          {events && events.length > 0 ? (
-            events.map((event) => {
+          {properesEvents.length > 0 ? (
+            properesEvents.map((event) => {
               const assignedCarsIds = event.assigned_cars || [];
               const eventType = event.event_type || "rally";
               const eventCars = cars?.filter((car) =>
