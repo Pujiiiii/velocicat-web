@@ -19,8 +19,8 @@ export default function AdminPage() {
   // ESTATS MODAL COTXES
   const [mostrarModalCotxe, setMostrarModalCotxe] = useState(false);
   const [cotxeEditant, setCotxeEditant] = useState<any>(null);
-  const [formCotxe, setFormCotxe] = useState<{model: string, fia_group: string, daily_rate: string, status: string, ownership: string, photos: string[]}>({ 
-    model: "", fia_group: "", daily_rate: "", status: "disponible", ownership: "escuderia", photos: [] 
+  const [formCotxe, setFormCotxe] = useState<{model: string, fia_group: string, daily_rate: string, sprint_rate: string, rentable_rally: boolean, rentable_sprint: boolean, status: string, ownership: string, photos: string[]}>({ 
+    model: "", fia_group: "", daily_rate: "0", sprint_rate: "0", rentable_rally: true, rentable_sprint: false, status: "disponible", ownership: "escuderia", photos: [] 
   });
   const [arxiusFotos, setArxiusFotos] = useState<FileList | null>(null);
   const [pujantFotos, setPujantFotos] = useState(false);
@@ -28,8 +28,8 @@ export default function AdminPage() {
   // ESTATS MODAL ESDEVENIMENTS
   const [mostrarModalEvent, setMostrarModalEvent] = useState(false);
   const [eventEditant, setEventEditant] = useState<any>(null);
-  const [formEvent, setFormEvent] = useState<{name: string, start_date: string, end_date: string, assigned_cars: number[]}>({ 
-    name: "", start_date: "", end_date: "", assigned_cars: [] 
+  const [formEvent, setFormEvent] = useState<{name: string, start_date: string, end_date: string, event_type: string, assigned_cars: number[]}>({ 
+    name: "", start_date: "", end_date: "", event_type: "rally", assigned_cars: [] 
   });
 
   useEffect(() => {
@@ -62,13 +62,13 @@ export default function AdminPage() {
   };
   const obrirModalNouCotxe = () => {
     setCotxeEditant(null);
-    setFormCotxe({model:"",fia_group:"",daily_rate:"",status:"disponible",ownership:"escuderia",photos:[]});
+    setFormCotxe({model:"",fia_group:"",daily_rate:"0",sprint_rate:"0",rentable_rally:true,rentable_sprint:false,status:"disponible",ownership:"escuderia",photos:[]});
     setArxiusFotos(null);
     setMostrarModalCotxe(true);
   };
   const obrirModalEditarCotxe = (cotxe: any) => {
     setCotxeEditant(cotxe);
-    setFormCotxe({ model: cotxe.model, fia_group: cotxe.fia_group, daily_rate: cotxe.daily_rate, status: cotxe.status, ownership: cotxe.ownership || "escuderia", photos: cotxe.photos || [] });
+    setFormCotxe({ model: cotxe.model, fia_group: cotxe.fia_group, daily_rate: String(cotxe.daily_rate ?? 0), sprint_rate: String(cotxe.sprint_rate ?? 0), rentable_rally: cotxe.rentable_rally ?? true, rentable_sprint: cotxe.rentable_sprint ?? false, status: cotxe.status, ownership: cotxe.ownership || "escuderia", photos: cotxe.photos || [] });
     setArxiusFotos(null);
     setMostrarModalCotxe(true);
   };
@@ -116,13 +116,13 @@ export default function AdminPage() {
     return urls;
   };
   const guardarCotxe = async () => {
-    if (!formCotxe.model || !formCotxe.fia_group || (formCotxe.ownership === "escuderia" && !formCotxe.daily_rate)) {
-      alert("Omple tots els camps."); return;
+    if (!formCotxe.model.trim() || !formCotxe.fia_group.trim() || (formCotxe.ownership === "escuderia" && (Number(formCotxe.daily_rate) < 0 || Number(formCotxe.sprint_rate) < 0 || !Number.isFinite(Number(formCotxe.daily_rate)) || !Number.isFinite(Number(formCotxe.sprint_rate))))) {
+      alert("Omple el model i el grup FIA, i indica preus vàlids."); return;
     }
     setPujantFotos(true);
     const novesUrls = await pujarFotosImgBB();
     const fotosFinals = [...formCotxe.photos, ...novesUrls];
-    const dadesAGuardar = { ...formCotxe, daily_rate: formCotxe.ownership === "particular" ? 0 : formCotxe.daily_rate, photos: fotosFinals };
+    const dadesAGuardar = { ...formCotxe, daily_rate: formCotxe.ownership === "particular" ? 0 : Number(formCotxe.daily_rate || 0), sprint_rate: formCotxe.ownership === "particular" ? 0 : Number(formCotxe.sprint_rate || 0), rentable_rally: formCotxe.ownership === "escuderia" && formCotxe.rentable_rally, rentable_sprint: formCotxe.ownership === "escuderia" && formCotxe.rentable_sprint, photos: fotosFinals };
     
     if (cotxeEditant) await supabase.from('rally_cars').update(dadesAGuardar).eq('id', cotxeEditant.id);
     else await supabase.from('rally_cars').insert([dadesAGuardar]);
@@ -149,7 +149,7 @@ export default function AdminPage() {
   };
   const obrirModalNouEvent = () => {
     setEventEditant(null);
-    setFormEvent({ name: "", start_date: "", end_date: "", assigned_cars: [] });
+    setFormEvent({ name: "", start_date: "", end_date: "", event_type: "rally", assigned_cars: [] });
     setMostrarModalEvent(true);
   };
   const obrirModalEditarEvent = (event: any) => {
@@ -158,6 +158,7 @@ export default function AdminPage() {
       name: event.name, 
       start_date: event.start_date, 
       end_date: event.end_date, 
+      event_type: event.event_type || "rally",
       assigned_cars: event.assigned_cars || [] 
     });
     setMostrarModalEvent(true);
@@ -275,7 +276,7 @@ export default function AdminPage() {
                     <div>
                       <h4 className="font-bold text-xl text-gray-900 italic uppercase">{cotxe.model}</h4>
                       <span className="bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold uppercase">{cotxe.fia_group}</span>
-                      <span className="ml-2 text-gray-600 font-bold text-sm">{cotxe.daily_rate} € / cursa</span>
+                      <div className="ml-2 text-gray-600 font-bold text-xs">Rally: {cotxe.daily_rate} € · Sprint/costa: {cotxe.sprint_rate ?? 0} €</div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => obrirModalEditarCotxe(cotxe)} className="text-gray-500 hover:text-blue-600 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
@@ -296,7 +297,7 @@ export default function AdminPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-white p-6 rounded-xl shadow-lg border-t-8 border-gray-900 flex flex-col h-[650px]">
              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-black italic uppercase text-gray-800">Calendari Rallys</h3>
+                <h3 className="text-2xl font-black italic uppercase text-gray-800">Calendari d'esdeveniments</h3>
                 <button onClick={obrirModalNouEvent} className="bg-gray-900 text-white font-bold uppercase text-sm px-4 py-2 rounded shadow hover:bg-gray-800 transition-colors">+ Nou</button>
              </div>
              
@@ -304,7 +305,7 @@ export default function AdminPage() {
                {esdeveniments.map((esdeveniment) => (
                  <div key={esdeveniment.id} className="mb-4 p-4 border-2 border-gray-100 rounded-lg bg-gray-50 flex flex-col gap-2">
                    <div className="flex justify-between items-start">
-                     <h4 className="font-bold text-lg text-gray-900 uppercase">{esdeveniment.name}</h4>
+                     <div><h4 className="font-bold text-lg text-gray-900 uppercase">{esdeveniment.name}</h4><p className="text-xs font-bold uppercase text-red-600">{esdeveniment.event_type === "rally_sprint" ? "Rally-sprint" : esdeveniment.event_type === "pujada_costa" ? "Pujada en costa" : "Rally"}</p></div>
                      <div className="flex gap-2">
                        <button onClick={() => obrirModalEditarEvent(esdeveniment)} className="text-gray-500 hover:text-blue-600 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
                        <button onClick={() => eliminarEsdeveniment(esdeveniment.id)} className="text-gray-500 hover:text-red-600 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
@@ -342,7 +343,7 @@ export default function AdminPage() {
                     
                     <div className="bg-white p-3 rounded border text-sm mb-4">
                       <p><span className="font-bold text-gray-700">Cotxe:</span> {reserva.rally_cars?.model}</p>
-                      <p><span className="font-bold text-gray-700">Rally:</span> {reserva.rally_events?.name}</p>
+                      <p><span className="font-bold text-gray-700">{reserva.rally_events?.event_type === "rally_sprint" ? "Rally-sprint" : reserva.rally_events?.event_type === "pujada_costa" ? "Pujada en costa" : "Rally"}:</span> {reserva.rally_events?.name}</p><p><span className="font-bold text-gray-700">Tarifa:</span> {reserva.rental_rate ?? "—"} € / cursa</p>
                     </div>
                     
                     <div className="flex gap-2">
@@ -380,10 +381,24 @@ export default function AdminPage() {
                   <input type="text" value={formCotxe.fia_group} onChange={(e) => setFormCotxe({...formCotxe, fia_group: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2 outline-none uppercase" />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Preu</label>
-                  <select value={formCotxe.ownership} onChange={(e) => setFormCotxe({ ...formCotxe, ownership: e.target.value })} className="w-full border-2 border-gray-300 rounded px-4 py-3"><option value="escuderia">Propietat de l'escuderia</option><option value="particular">Vehicle particular</option></select><input type="number" value={formCotxe.daily_rate} onChange={(e) => setFormCotxe({...formCotxe, daily_rate: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2 outline-none" />
+                  <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Propietat</label>
+                  <select value={formCotxe.ownership} onChange={(e) => setFormCotxe({ ...formCotxe, ownership: e.target.value })} className="w-full border-2 border-gray-300 rounded px-3 py-2"><option value="escuderia">Propietat de l'escuderia</option><option value="particular">Vehicle particular</option></select>
                 </div>
               </div>
+              {formCotxe.ownership === "escuderia" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Preu per a rallys (€ / cursa)</label>
+                    <input type="number" min="0" step="0.01" value={formCotxe.daily_rate} onChange={(e) => setFormCotxe({...formCotxe, daily_rate: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2 outline-none" />
+                    <label className="mt-2 flex items-center gap-2 text-sm font-bold text-gray-700"><input type="checkbox" checked={formCotxe.rentable_rally} onChange={(e) => setFormCotxe({...formCotxe, rentable_rally: e.target.checked})} /> Disponible per a rallys</label>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Preu per a sprint/costa (€ / cursa)</label>
+                    <input type="number" min="0" step="0.01" value={formCotxe.sprint_rate} onChange={(e) => setFormCotxe({...formCotxe, sprint_rate: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2 outline-none" />
+                    <label className="mt-2 flex items-center gap-2 text-sm font-bold text-gray-700"><input type="checkbox" checked={formCotxe.rentable_sprint} onChange={(e) => setFormCotxe({...formCotxe, rentable_sprint: e.target.checked})} /> Disponible per a rally-sprint i pujades en costa</label>
+                  </div>
+                </div>
+              ) : <p className="text-sm text-gray-600">Els vehicles particulars no es poden llogar.</p>}
 
               {formCotxe.photos && formCotxe.photos.length > 0 && (
                 <div className="mt-2">
@@ -424,11 +439,19 @@ export default function AdminPage() {
       {mostrarModalEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full border-t-8 border-gray-900 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-black italic uppercase mb-6 text-gray-800">{eventEditant ? "Editar Rally" : "Nou Rally"}</h3>
+            <h3 className="text-2xl font-black italic uppercase mb-6 text-gray-800">{eventEditant ? "Editar esdeveniment" : "Nou esdeveniment"}</h3>
             <div className="flex flex-col gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Nom de l'Esdeveniment</label>
                 <input type="text" placeholder="Ex: Rally Costa Brava" value={formEvent.name} onChange={(e) => setFormEvent({...formEvent, name: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2 focus:border-gray-900 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 uppercase mb-1">Modalitat</label>
+                <select value={formEvent.event_type} onChange={(e) => setFormEvent({...formEvent, event_type: e.target.value})} className="w-full border-2 border-gray-300 rounded px-3 py-2">
+                  <option value="rally">Rally</option>
+                  <option value="rally_sprint">Rally-sprint</option>
+                  <option value="pujada_costa">Pujada en costa</option>
+                </select>
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
@@ -474,7 +497,7 @@ export default function AdminPage() {
             <div className="flex gap-3 mt-8">
               <button onClick={() => setMostrarModalEvent(false)} className="flex-1 bg-gray-200 font-bold uppercase py-3 rounded hover:bg-gray-300">Cancel·lar</button>
               <button onClick={guardarEsdeveniment} className="flex-1 bg-gray-900 text-white font-black uppercase py-3 rounded shadow hover:bg-gray-800">
-                {eventEditant ? "Guardar Canvis" : "Crear Rally"}
+                {eventEditant ? "Guardar Canvis" : "Crear esdeveniment"}
               </button>
             </div>
           </div>
