@@ -48,7 +48,7 @@ export default async function Home() {
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-28 lg:grid-cols-[1.2fr_.8fr] lg:items-center">
           <div>
             <p className="font-black uppercase tracking-[.35em] text-yellow-400">
-              VELOCI CAT RACING TEAM
+              VELOCICAT RACING TEAM
             </p>
             <h1 className="mt-5 text-6xl font-black uppercase italic leading-none md:text-8xl">
               Portem la passió
@@ -215,24 +215,6 @@ export default async function Home() {
             ) : (
               <p className="text-gray-500">Les notícies de l'equip apareixeran aquí.</p>
             )}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {cars?.map((c: any) => (
-              <Link
-                key={c.id}
-                href={"/flota/" + c.id}
-                className="rounded-2xl border p-5"
-              >
-                <p className="text-xs font-black uppercase text-red-600">{c.fia_group}</p>
-                <h3 className="mt-2 text-xl font-black italic uppercase">{c.model}</h3>
-                {c.ownership==="particular"?<p className="mt-3 font-bold text-gray-500">Vehicle particular · no disponible per lloguer</p>:<p className="mt-3 font-bold">{c.daily_rate}€ / cursa</p>}
-              </Link>
-            ))}
           </div>
         </div>
       </section>
