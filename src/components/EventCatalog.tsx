@@ -52,15 +52,16 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
     <section id="calendari" className="py-24 bg-gray-100 border-t-2 border-gray-200 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-black uppercase text-gray-900 italic">Pròxims Rallys</h2>
+          <h2 className="text-4xl font-black uppercase text-gray-900 italic">Pròximes competicions</h2>
           <div className="w-24 h-2 bg-yellow-400 mx-auto mt-4"></div>
-          <p className="mt-4 text-gray-600 font-medium">Tria la teva propera cursa i reserva la teva màquina.</p>
+          <p className="mt-4 text-gray-600 font-medium">Tria la modalitat i reserva la teva màquina.</p>
         </div>
 
         <div className="flex flex-col gap-12">
           {events && events.length > 0 ? (
             events.map((event) => {
               const assignedCarsIds = event.assigned_cars || [];
+              const eventType = event.event_type || "rally";
               const eventCars = cars?.filter((car) =>
                 assignedCarsIds.map((id: any) => String(id)).includes(String(car.id))
               ) || [];
@@ -77,7 +78,7 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                   </div>
 
                   <div className="p-6 md:p-8">
-                    <h4 className="text-lg font-bold uppercase text-gray-700 mb-6">Cotxes Disponibles:</h4>
+                    <p className="text-sm font-black uppercase text-red-600 mb-4">{eventType === "rally" ? "Rally" : eventType === "rally_sprint" ? "Rally-sprint" : "Pujada en costa"}</p><h4 className="text-lg font-bold uppercase text-gray-700 mb-6">Cotxes disponibles:</h4>
 
                     {eventCars.length === 0 ? (
                       <div className="bg-gray-50 p-6 rounded-xl border-2 border-dashed border-gray-200 text-center">
@@ -89,7 +90,9 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                           const isBooked = bookings?.some((b) => String(b.event_id) === String(event.id) && String(b.car_id) === String(car.id));
                           const isMaintenance = car.status === "manteniment";
                           const isPrivate = car.ownership === "particular";
-                          const isAvailable = !isBooked && !isMaintenance && !isPrivate;
+                          const isRentable = eventType === "rally" ? (car.rentable_rally ?? true) : (car.rentable_sprint ?? false);
+                          const rentalRate = eventType === "rally" ? car.daily_rate : car.sprint_rate;
+                          const isAvailable = !isBooked && !isMaintenance && !isPrivate && isRentable;
 
                           return (
                             <div key={car.id} className={`flex flex-col border-2 rounded-xl p-4 transition-all ${isAvailable ? "border-gray-200 bg-white shadow-sm hover:border-yellow-400" : "border-red-100 bg-red-50 opacity-80"}`}>
@@ -103,7 +106,7 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                                   <h5 className="font-black text-gray-900 uppercase italic leading-tight">{car.model}</h5>
                                   <div className="mt-1 flex flex-col items-start gap-1">
                                     <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">{car.fia_group}</span>
-                                    {isPrivate ? <span className="text-gray-500 font-bold text-sm">Vehicle particular · no disponible per lloguer</span> : <span className="text-gray-700 font-bold text-sm">{car.daily_rate}€ / cursa</span>}
+                                    {isPrivate ? <span className="text-gray-500 font-bold text-sm">Vehicle particular · no disponible per lloguer</span> : <span className="text-gray-700 font-bold text-sm">{rentalRate ?? 0}€ / cursa</span>}
                                   </div>
                                 </div>
                               </div>
@@ -146,11 +149,11 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
             {status === "success" ? (
               <div role="status" aria-live="polite" className="bg-green-100 text-green-900 p-5 rounded-xl">
                 <p className="text-center font-black uppercase">Sol·licitud rebuda!</p>
-                <p className="mt-2 text-sm text-center">Hem registrat la teva sol·licitud per al rally. Aquí tens el resum:</p>
+                <p className="mt-2 text-sm text-center">Hem registrat la teva sol·licitud per a l’esdeveniment. Aquí tens el resum:</p>
                 <dl className="mt-4 space-y-2 text-sm">
                   <div className="flex justify-between gap-4"><dt className="font-bold">Rally</dt><dd className="text-right">{selectedEvent.name}</dd></div>
                   <div className="flex justify-between gap-4"><dt className="font-bold">Vehicle</dt><dd className="text-right">{selectedCar.model}</dd></div>
-                  <div className="flex justify-between gap-4"><dt className="font-bold">Preu</dt><dd className="text-right">{selectedCar.daily_rate}€ / cursa</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="font-bold">Preu</dt><dd className="text-right">{(selectedEvent.event_type === "rally" ? selectedCar.daily_rate : selectedCar.sprint_rate)}€ / cursa</dd></div>
                 </dl>
                 <p className="mt-4 text-xs text-center">La disponibilitat s’actualitzarà en tancar aquest resum.</p>
                 <button type="button" onClick={() => { setModalOpen(false); router.refresh(); }} className="mt-5 w-full py-3 bg-gray-900 text-white font-black uppercase rounded hover:bg-yellow-400 hover:text-red-700 transition-colors">
