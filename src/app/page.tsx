@@ -48,7 +48,7 @@ export default async function Home() {
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-28 lg:grid-cols-[1.2fr_.8fr] lg:items-center">
           <div>
             <p className="font-black uppercase tracking-[.35em] text-yellow-400">
-              VELOCI CAT RACING TEAM
+              VELOCICAT RACING TEAM
             </p>
             <h1 className="mt-5 text-6xl font-black uppercase italic leading-none md:text-8xl">
               Portem la passió
