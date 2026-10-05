@@ -5,7 +5,7 @@ type Row=Record<string,any>; type Option={id:number;label:string};
 const tabs=["profile","drivers","news","sponsors","results","gallery","live","contacts"] as const; type Tab=typeof tabs[number];
 const tableOf=(t:Tab)=>t==="profile"?"team_profile":t==="drivers"?"drivers":t==="news"?"news_posts":t==="sponsors"?"sponsors":t==="results"?"rally_results":t==="gallery"?"gallery_items":t==="live"?"live_updates":"contact_messages";
 const labels:{[K in Tab]:string}={profile:"Escuderia",drivers:"Equip",news:"Notícies",sponsors:"Patrocinadors",results:"Resultats",gallery:"Galeria",live:"Actualitzacions en directe",contacts:"Contactes"};
-const requiredFields:Partial<Record<Tab,string[]>>={profile:["name"],drivers:["name","slug"],news:["title","slug"],sponsors:["name"],results:["season"],gallery:["image_url"],live:["event_id","message"]};
+const requiredFields:Partial<Record<Tab,string[]>>={profile:["name"],drivers:["name","role"],news:["title","slug"],sponsors:["name"],results:["season"],gallery:["image_url"],live:["event_id","message"]};
 type Relations={events:Option[];drivers:Option[];cars:Option[]};
 export default function ContentAdmin(){const[ready,setReady]=useState(false),[admin,setAdmin]=useState(false),[tab,setTab]=useState<Tab>("profile"),[rows,setRows]=useState<Row[]>([]),[editing,setEditing]=useState<Row|null>(null),[message,setMessage]=useState(""),[relations,setRelations]=useState<Relations>({events:[],drivers:[],cars:[]});
 useEffect(()=>{let active=true;supabase.auth.getSession().then(({data})=>{const isAdmin=data.session?.user?.app_metadata?.role==="admin";if(!active)return;setAdmin(isAdmin);setReady(true);if(isAdmin)loadRelations()});return()=>{active=false}},[]);
