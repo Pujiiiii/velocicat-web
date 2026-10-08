@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Link from "next/link";
+import PageShell from "../../components/PageShell";
 import { supabase } from "../../utils/supabase";
 
 export default function Page() {
@@ -30,13 +30,7 @@ export default function Page() {
     "mb-4 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-500 shadow-sm focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400";
 
   return (
-    <div className="min-h-screen bg-white text-gray-950">
-      <header className="bg-black px-4 py-5">
-        <Link href="/" className="font-black italic text-white">
-          ← VELOCI<span className="text-yellow-400">CAT</span>
-        </Link>
-      </header>
-
+    <PageShell>
       <main className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:py-16 md:grid-cols-2 md:gap-12">
         <section className="self-center">
           <p className="font-black uppercase tracking-widest text-red-600">Parlem</p>
@@ -128,6 +122,6 @@ export default function Page() {
           </button>
         </form>
       </main>
-    </div>
+    </PageShell>
   );
 }
