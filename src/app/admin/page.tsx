@@ -124,21 +124,34 @@ export default function AdminPage() {
     const fotosFinals = [...formCotxe.photos, ...novesUrls];
     const dadesAGuardar = { ...formCotxe, daily_rate: formCotxe.ownership === "particular" ? 0 : Number(formCotxe.daily_rate || 0), sprint_rate: formCotxe.ownership === "particular" ? 0 : Number(formCotxe.sprint_rate || 0), rentable_rally: formCotxe.ownership === "escuderia" && formCotxe.rentable_rally, rentable_sprint: formCotxe.ownership === "escuderia" && formCotxe.rentable_sprint, photos: fotosFinals };
     
-    if (cotxeEditant) await supabase.from('rally_cars').update(dadesAGuardar).eq('id', cotxeEditant.id);
-    else await supabase.from('rally_cars').insert([dadesAGuardar]);
-    
+    const result = cotxeEditant
+      ? await supabase.from('rally_cars').update(dadesAGuardar).eq('id', cotxeEditant.id)
+      : await supabase.from('rally_cars').insert([dadesAGuardar]);
+
     setPujantFotos(false);
+    if (result.error) {
+      setError("No s'ha pogut guardar el vehicle: " + result.error.message);
+      return;
+    }
     setMostrarModalCotxe(false);
     carregarCotxes();
   };
   const eliminarCotxe = async (id: number) => {
     if(confirm("Estàs segur que vols eliminar aquest vehicle?")) {
-      await supabase.from('rally_cars').delete().eq('id', id);
+      const { error } = await supabase.from('rally_cars').delete().eq('id', id);
+      if (error) {
+        setError("No s'ha pogut eliminar el vehicle: " + error.message);
+        return;
+      }
       carregarCotxes();
     }
   };
   const actualitzarEstatCotxe = async (id: number, nouEstat: string) => {
-    await supabase.from('rally_cars').update({ status: nouEstat }).eq('id', id);
+    const { error } = await supabase.from('rally_cars').update({ status: nouEstat }).eq('id', id);
+    if (error) {
+      setError("No s'ha pogut actualitzar l'estat del vehicle: " + error.message);
+      return;
+    }
     carregarCotxes();
   };
 
@@ -167,15 +180,24 @@ export default function AdminPage() {
     if (!formEvent.name || !formEvent.start_date || !formEvent.end_date) {
       alert("Omple els camps bàsics de la cursa."); return;
     }
-    if (eventEditant) await supabase.from('rally_events').update(formEvent).eq('id', eventEditant.id);
-    else await supabase.from('rally_events').insert([formEvent]);
-    
+    const result = eventEditant
+      ? await supabase.from('rally_events').update(formEvent).eq('id', eventEditant.id)
+      : await supabase.from('rally_events').insert([formEvent]);
+
+    if (result.error) {
+      setError("No s'ha pogut guardar l'esdeveniment: " + result.error.message);
+      return;
+    }
     setMostrarModalEvent(false);
     carregarEsdeveniments();
   };
   const eliminarEsdeveniment = async (id: number) => {
     if(confirm("Estàs segur que vols cancel·lar i eliminar aquest esdeveniment?")) {
-      await supabase.from('rally_events').delete().eq('id', id);
+      const { error } = await supabase.from('rally_events').delete().eq('id', id);
+      if (error) {
+        setError("No s'ha pogut eliminar l'esdeveniment: " + error.message);
+        return;
+      }
       carregarEsdeveniments();
     }
   };
@@ -189,12 +211,20 @@ export default function AdminPage() {
     if (data) setReserves(data);
   };
   const actualitzarEstatReserva = async (id: number, nouEstat: string) => {
-    await supabase.from('event_bookings').update({ status: nouEstat }).eq('id', id);
+    const { error } = await supabase.from('event_bookings').update({ status: nouEstat }).eq('id', id);
+    if (error) {
+      setError("No s'ha pogut actualitzar la reserva: " + error.message);
+      return;
+    }
     carregarReserves(); 
   };
   const eliminarReserva = async (id: number) => {
     if(confirm("Segur que vols eliminar i cancel·lar aquesta reserva definitivament?")) {
-      await supabase.from('event_bookings').delete().eq('id', id);
+      const { error } = await supabase.from('event_bookings').delete().eq('id', id);
+      if (error) {
+        setError("No s'ha pogut eliminar la reserva: " + error.message);
+        return;
+      }
       carregarReserves();
     }
   };
