@@ -109,7 +109,7 @@ export default function EventCatalog({ events, cars, bookings }: { events: any[]
                                   <h5 className="font-black text-gray-900 uppercase italic leading-tight">{car.model}</h5>
                                   <div className="mt-1 flex flex-col items-start gap-1">
                                     <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">{car.fia_group}</span>
-                                    {isPrivate ? <span className="text-gray-500 font-bold text-sm">Vehicle particular · no disponible per lloguer</span> : <span className="text-gray-700 font-bold text-sm">{rentalRate ?? 0}€ / cursa</span>}
+                                    {isPrivate ? <span className="text-gray-500 font-bold text-sm">Vehicle particular · no disponible per lloguer</span> : isRentable ? <span className="text-gray-700 font-bold text-sm">{rentalRate ?? 0}€ / cursa</span> : <span className="text-red-700 font-bold text-sm">No disponible per aquesta modalitat</span>}
                                   </div>
                                 </div>
                               </div>

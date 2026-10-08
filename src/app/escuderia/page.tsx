@@ -29,7 +29,7 @@ export default async function Page() {
             />
           )}
           <p className="font-black uppercase tracking-[.3em] text-yellow-400">
-            VELOCI CAT RACING TEAM
+            VELOCICAT RACING TEAM
           </p>
           <h1 className="mt-4 text-5xl font-black italic uppercase md:text-7xl">
             {profile?.name || "VelociCAT"}
