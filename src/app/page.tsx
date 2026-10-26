@@ -20,7 +20,7 @@ export default async function Home() {
     supabase.from("rally_events").select("*").order("start_date", { ascending: true }),
     supabase
       .from("rally_results")
-      .select("*,rally_events(name),drivers(name)")
+      .select("*,rally_events(name),driver:drivers!driver_id(name),copilot:drivers!copilot_id(name)")
       .eq("published", true)
       .order("season", { ascending: false })
       .order("id", { ascending: false })
@@ -136,7 +136,7 @@ export default async function Home() {
                     {r.rally_events?.name || "Rally"}
                   </p>
                   <h3 className="mt-2 text-2xl font-black italic">
-                    {r.drivers?.name || "VelociCAT"}
+                    {r.driver?.name || "VelociCAT"}
                   </h3>
                   <p className="mt-5 text-3xl font-black">
                     {r.category_position ? "P" + r.category_position : "—"}
