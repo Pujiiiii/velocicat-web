@@ -118,6 +118,7 @@ function heuristicRallyExtractor(
 // Extractor amb IA (Gemini Flash)
 async function aiRallyExtractor(
   apiKey: string,
+  modelName: string,
   rawText: string,
   driverName?: string,
   driverNumber?: string | number,
@@ -156,7 +157,7 @@ ${rawText.slice(0, 40000)}
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -171,7 +172,7 @@ ${rawText.slice(0, 40000)}
     );
 
     if (!res.ok) {
-      console.warn("Gemini API error status:", res.status);
+      console.warn(`Gemini API (${modelName}) error status:`, res.status);
       return null;
     }
 
@@ -179,7 +180,12 @@ ${rawText.slice(0, 40000)}
     const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!candidateText) return null;
 
-    const parsed = JSON.parse(candidateText.trim());
+    let textToParse = candidateText.trim();
+    if (textToParse.startsWith("```")) {
+      textToParse = textToParse.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    }
+
+    const parsed = JSON.parse(textToParse);
     if (Array.isArray(parsed)) {
       return parsed.map((item: any) => ({
         stage: String(item.stage || "TC"),
@@ -291,12 +297,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Executar extracció: primer amb Gemini IA si hi ha clau, o amb el parser heurístic
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const geminiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+    const geminiModel = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
     let stages: ExtractedStage[] = [];
     let source: "ai" | "heuristic" = "heuristic";
 
     if (geminiKey) {
-      const aiResults = await aiRallyExtractor(geminiKey, contentToAnalyze, driverName, driverNumber, rallyName);
+      const aiResults = await aiRallyExtractor(geminiKey, geminiModel, contentToAnalyze, driverName, driverNumber, rallyName);
       if (aiResults && aiResults.length > 0) {
         stages = aiResults;
         source = "ai";
