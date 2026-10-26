@@ -1,2 +1,45 @@
-import PageShell from "../../components/PageShell";import {supabase} from "../../utils/supabase";export const revalidate=60;
-export default async function Page(){const {data}=await supabase.from("gallery_items").select("*").eq("published",true).order("created_at",{ascending:false});return <PageShell><section className="mx-auto max-w-7xl px-4 py-20"><p className="font-black uppercase text-red-600">Multimèdia</p><h1 className="mt-2 text-5xl font-black italic uppercase">Galeria</h1>{data?.length?<div className="columns-1 gap-6 md:columns-2 lg:columns-3 mt-12">{data.map((g:any)=><figure key={g.id} className="mb-6 break-inside-avoid overflow-hidden rounded-2xl bg-gray-100"><img src={g.image_url} alt={g.title||"VelociCAT"} className="w-full"/>{(g.title||g.caption)&&<figcaption className="p-4"><b>{g.title}</b><p className="text-sm text-gray-500">{g.caption}</p></figcaption>}</figure>)}</div>:<Empty/>}</section></PageShell>}function Empty(){return <div className="mt-10 rounded-xl border-2 border-dashed p-12 text-center font-bold text-gray-500">La galeria s'omplirà amb les fotos de l'equip.</div>}
+import type { Metadata } from "next";
+import PageShell from "../../components/PageShell";
+import GalleryViewer, { GalleryItem } from "../../components/GalleryViewer";
+import { supabase } from "../../utils/supabase";
+
+export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Galeria Multimèdia | VelociCAT Racing Team",
+  description:
+    "Descobreix la galeria oficial de VelociCAT Racing Team: fotografies de ral·lis, parcs d'assistència, la nostra flota de vehicles i moments de podi a Catalunya.",
+  alternates: { canonical: "/galeria" },
+  openGraph: {
+    title: "Galeria Multimèdia | VelociCAT Racing Team",
+    description: "Imatges exclusives i moments destacats de competició de l'equip de ral·lis VelociCAT.",
+  },
+};
+
+export default async function Page() {
+  const { data } = await supabase
+    .from("gallery_items")
+    .select("*")
+    .eq("published", true)
+    .order("created_at", { ascending: false });
+
+  const items = (data || []) as unknown as GalleryItem[];
+
+  return (
+    <PageShell>
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:py-20">
+        <div>
+          <p className="font-black uppercase tracking-wider text-red-600">Multimèdia</p>
+          <h1 className="mt-2 text-5xl font-black italic uppercase sm:text-6xl text-gray-900">
+            Galeria <span className="text-red-600">oficial</span>
+          </h1>
+          <p className="mt-4 max-w-2xl text-lg text-gray-600">
+            Els millors moments de la temporada sobre l'asfalt i la terra. Fes clic sobre qualsevol imatge per visualitzar-la a pantalla completa.
+          </p>
+        </div>
+
+        <GalleryViewer items={items} />
+      </section>
+    </PageShell>
+  );
+}

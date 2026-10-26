@@ -667,6 +667,27 @@ export default function AdminPage() {
     carregarComptadors();
   };
 
+  const finalitzarRallyLive = async () => {
+    const activeRows = cmsRows.filter((r) => r.is_live);
+    if (activeRows.length === 0) {
+      alert("No hi ha cap tram actiu en directe per arxivar.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Vols finalitzar el ral·li i arxivar els ${activeRows.length} trams actius?\n\nPassaran a l'històric i ja no sortiran com a 'En directe' a la web pública.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const { error: err } = await supabase.from("live_updates").update({ is_live: false }).eq("is_live", true);
+      if (err) throw err;
+      setSuccessMsg(`S'han arxivat correctament els ${activeRows.length} trams. El ral·li ha quedat marcat com a finalitzat.`);
+      carregarCmsRows("live");
+    } catch (e: any) {
+      setError("Error arxivant els trams: " + e.message);
+    }
+  };
+
   // Filtre de resultats
   const filteredResults =
     activeTab === "results"
@@ -897,6 +918,32 @@ export default function AdminPage() {
               >
                 + Afegir Nou Cotxe
               </button>
+            </div>
+
+            {/* KPI resum de la flota */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <span className="text-xs font-bold uppercase text-gray-500">Total Flota</span>
+                <p className="mt-1 text-2xl font-black text-gray-950">{cotxes.length}</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <span className="text-xs font-bold uppercase text-gray-500">Disponibles Lloguer</span>
+                <p className="mt-1 text-2xl font-black text-emerald-600">
+                  {cotxes.filter((c) => c.ownership !== "particular" && (c.rentable_rally !== false || c.rentable_sprint)).length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <span className="text-xs font-bold uppercase text-gray-500">Vehicles Particulars</span>
+                <p className="mt-1 text-2xl font-black text-yellow-600">
+                  {cotxes.filter((c) => c.ownership === "particular").length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <span className="text-xs font-bold uppercase text-gray-500">Grups FIA</span>
+                <p className="mt-1 text-2xl font-black text-gray-900">
+                  {new Set(cotxes.map((c) => c.fia_group).filter(Boolean)).size}
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1234,29 +1281,40 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              {activeTab !== "contacts" && !(activeTab === "profile" && cmsRows.length > 0) && (
-                <button
-                  onClick={() => {
-                    setError("");
-                    setSuccessMsg("");
-                    setEditingItem(
-                      activeTab === "profile"
-                        ? { published: true, name: "VelociCAT" }
-                        : activeTab === "results"
-                        ? {
-                            published: true,
-                            season: new Date().getFullYear(),
-                            status: "finished",
-                            car_id: carFilterResults !== "all" ? carFilterResults : null,
-                          }
-                        : { published: true, is_live: true, season: new Date().getFullYear() }
-                    );
-                  }}
-                  className="rounded-lg bg-gray-950 px-5 py-2.5 font-black uppercase text-white shadow-sm hover:bg-gray-800 transition duration-150 hover:-translate-y-0.5"
-                >
-                  + Crear {tabMeta[activeTab].label}
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-3">
+                {activeTab === "live" && cmsRows.some((r) => r.is_live) && (
+                  <button
+                    onClick={finalitzarRallyLive}
+                    className="rounded-lg bg-red-600 px-4 py-2.5 font-black uppercase text-white shadow-sm hover:bg-red-700 transition duration-150 hover:-translate-y-0.5 text-xs flex items-center gap-1.5"
+                  >
+                    <span>🏁</span>
+                    Finalitzar Ral·li ({cmsRows.filter((r) => r.is_live).length} actius)
+                  </button>
+                )}
+                {activeTab !== "contacts" && !(activeTab === "profile" && cmsRows.length > 0) && (
+                  <button
+                    onClick={() => {
+                      setError("");
+                      setSuccessMsg("");
+                      setEditingItem(
+                        activeTab === "profile"
+                          ? { published: true, name: "VelociCAT" }
+                          : activeTab === "results"
+                          ? {
+                              published: true,
+                              season: new Date().getFullYear(),
+                              status: "finished",
+                              car_id: carFilterResults !== "all" ? carFilterResults : null,
+                            }
+                          : { published: true, is_live: true, season: new Date().getFullYear() }
+                      );
+                    }}
+                    className="rounded-lg bg-gray-950 px-5 py-2.5 font-black uppercase text-white shadow-sm hover:bg-gray-800 transition duration-150 hover:-translate-y-0.5"
+                  >
+                    + Crear {tabMeta[activeTab].label}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* SECCIÓ ESPECIAL D'EXTRACIÓ AUTOMÀTICA PER A RALLY LIVE */}
