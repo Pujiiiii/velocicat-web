@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../../utils/supabase";
 
 type Row = Record<string, any>;
-type Option = { id: number; label: string; eventType?: string };
+type Option = { id: number; label: string; eventType?: string; number?: string };
 type Relations = { events: Option[]; drivers: Option[]; cars: Option[] };
 
 type Tab =
@@ -142,6 +142,7 @@ export default function AdminPage() {
       drivers: (driversRes.data || []).map((d: any) => ({
         id: Number(d.id),
         label: String(d.name) + (d.number ? " #" + d.number : ""),
+        number: d.number ? String(d.number) : "",
       })),
       cars: (carsRes.data || []).map((c: any) => ({
         id: Number(c.id),
@@ -186,6 +187,7 @@ export default function AdminPage() {
     if (tabName === "news") q = q.order("created_at", { ascending: false });
     else if (tabName === "profile") q = q.order("id").limit(1);
     else if (tabName === "results") q = q.order("season", { ascending: false }).order("id", { ascending: false });
+    else if (tabName === "live") q = q.order("created_at", { ascending: false });
     else q = q.order("id", { ascending: false });
 
     const { data, error: qErr } = await q;
@@ -1257,6 +1259,18 @@ export default function AdminPage() {
               )}
             </div>
 
+            {/* SECCIÓ ESPECIAL D'EXTRACIÓ AUTOMÀTICA PER A RALLY LIVE */}
+            {activeTab === "live" && (
+              <LiveSyncStation
+                events={relations.events}
+                drivers={relations.drivers}
+                liveRows={cmsRows}
+                onRefresh={() => carregarCmsRows("live")}
+                onSuccess={(msg) => setSuccessMsg(msg)}
+                onError={(msg) => setError(msg)}
+              />
+            )}
+
             {/* Filtre específic per a resultats */}
             {activeTab === "results" && (
               <div className="flex flex-wrap items-center gap-3 bg-white p-4 rounded-xl border">
@@ -1679,6 +1693,466 @@ export default function AdminPage() {
 }
 
 // =========================================================================
+// COMPONENT LIVE SYNC STATION: EXTRACCIÓ I SINCRONITZACIÓ DE TEMPS
+// =========================================================================
+
+function LiveSyncStation({
+  events,
+  drivers,
+  liveRows,
+  onRefresh,
+  onSuccess,
+  onError,
+}: {
+  events: Option[];
+  drivers: Option[];
+  liveRows: Row[];
+  onRefresh: () => void;
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+}) {
+  const [selectedEventId, setSelectedEventId] = useState<number | "">("");
+  const [selectedDriverId, setSelectedDriverId] = useState<number | "">("");
+  const [timingUrl, setTimingUrl] = useState("");
+  const [rawText, setRawText] = useState("");
+  const [inputMode, setInputMode] = useState<"url" | "text">("url");
+
+  const [loading, setLoading] = useState(false);
+  const [detectedStages, setDetectedStages] = useState<any[]>([]);
+  const [selectedStages, setSelectedStages] = useState<Record<string, boolean>>({});
+  const [extractSource, setExtractSource] = useState<string>("");
+  const [autoSync, setAutoSync] = useState(false);
+  const [countdown, setCountdown] = useState(120);
+  const [importing, setImporting] = useState(false);
+
+  // Inicialització per defecte
+  useEffect(() => {
+    if (events.length > 0 && selectedEventId === "") {
+      setSelectedEventId(events[0].id);
+    }
+    if (drivers.length > 0 && selectedDriverId === "") {
+      setSelectedDriverId(drivers[0].id);
+    }
+  }, [events, drivers, selectedEventId, selectedDriverId]);
+
+  // Recuperar URL guardada de localStorage quan canvia el ral·li
+  useEffect(() => {
+    if (selectedEventId !== "") {
+      try {
+        const saved = localStorage.getItem("velocicat_live_url_" + selectedEventId);
+        if (saved) setTimingUrl(saved);
+      } catch {
+        // Ignorar errors de localStorage
+      }
+    }
+  }, [selectedEventId]);
+
+  // Executar extracció
+  const extractTimes = useCallback(
+    async (isAuto = false) => {
+      if (inputMode === "url" && !timingUrl.trim()) {
+        if (!isAuto) onError("Introdueix la URL oficial on es publiquen els temps.");
+        return;
+      }
+      if (inputMode === "text" && !rawText.trim()) {
+        if (!isAuto) onError("Enganxa el contingut o taula de la web oficial de temps.");
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error("Cal tenir la sessió iniciada.");
+
+        const selEv = events.find((e) => e.id === Number(selectedEventId));
+        const selDr = drivers.find((d) => d.id === Number(selectedDriverId));
+
+        const res = await fetch("/api/extract-rally-times", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            url: inputMode === "url" ? timingUrl.trim() : undefined,
+            rawText: inputMode === "text" ? rawText.trim() : undefined,
+            driverName: selDr ? selDr.label.replace(/#\d+/, "").trim() : "VelociCAT",
+            driverNumber: selDr?.number || undefined,
+            rallyName: selEv ? selEv.label : undefined,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Error connectant amb la web de temps.");
+
+        if (Array.isArray(data.stages)) {
+          setDetectedStages(data.stages);
+          setExtractSource(data.source === "ai" ? "Intel·ligència Artificial (IA)" : "Parser de taules automàtic");
+
+          // Seleccionar per defecte els nous trams
+          const newMap: Record<string, boolean> = {};
+          data.stages.forEach((st: any) => {
+            const alreadyExists = liveRows.some(
+              (r) =>
+                Number(r.event_id) === Number(selectedEventId) &&
+                String(r.stage).trim().toUpperCase() === String(st.stage).trim().toUpperCase()
+            );
+            newMap[st.stage] = !alreadyExists;
+          });
+          setSelectedStages(newMap);
+
+          // Guardar URL per a aquest ral·li
+          if (inputMode === "url" && timingUrl.trim() && selectedEventId !== "") {
+            try {
+              localStorage.setItem("velocicat_live_url_" + selectedEventId, timingUrl.trim());
+            } catch {
+              // Ignore
+            }
+          }
+
+          if (!isAuto) {
+            onSuccess(
+              `S'han detectat ${data.stages.length} trams (${data.source === "ai" ? "amb IA" : "amb parser de taules"}).`
+            );
+          }
+        }
+      } catch (err: any) {
+        if (!isAuto) onError(err.message || "Error analitzant els temps.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [inputMode, timingUrl, rawText, selectedEventId, selectedDriverId, events, drivers, liveRows, onSuccess, onError]
+  );
+
+  // Timer per a auto-sync cada 120 segons (2 minuts)
+  const extractRef = useRef(extractTimes);
+  useEffect(() => {
+    extractRef.current = extractTimes;
+  }, [extractTimes]);
+
+  useEffect(() => {
+    if (!autoSync) {
+      setCountdown(120);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          extractRef.current(true);
+          return 120;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [autoSync]);
+
+  // Importar trams seleccionats a Supabase
+  const importStages = async () => {
+    const toImport = detectedStages.filter((st) => selectedStages[st.stage] !== false);
+    if (toImport.length === 0) {
+      onError("No hi ha cap tram seleccionat per a importar.");
+      return;
+    }
+
+    setImporting(true);
+    let count = 0;
+    try {
+      for (const st of toImport) {
+        // Comprovar si ja existia per a aquest rally i pilot
+        const existing = liveRows.find(
+          (r) =>
+            Number(r.event_id) === Number(selectedEventId) &&
+            String(r.stage).trim().toUpperCase() === String(st.stage).trim().toUpperCase()
+        );
+
+        const payload = {
+          event_id: Number(selectedEventId),
+          driver_id: selectedDriverId ? Number(selectedDriverId) : null,
+          stage: st.stage,
+          time: st.time,
+          gap: st.gap,
+          position: st.position,
+          category_position: st.category_position,
+          message: st.message || (st.position ? `Tram finalitzat en P${st.position}` : "Temps registrat"),
+          is_live: true,
+        };
+
+        if (existing) {
+          await supabase.from("live_updates").update(payload).eq("id", existing.id);
+        } else {
+          await supabase.from("live_updates").insert(payload);
+        }
+        count++;
+      }
+
+      onSuccess(`S'han publicat ${count} trams correctament al Rally LIVE!`);
+      onRefresh();
+    } catch (err: any) {
+      onError("Error important els trams: " + err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const selDriver = drivers.find((d) => d.id === Number(selectedDriverId));
+
+  return (
+    <div className="rounded-2xl bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6 text-white shadow-xl border border-yellow-400/40 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-800 pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-3 w-3 items-center justify-center">
+              <span className="h-2.5 w-2.5 animate-ping rounded-full bg-red-500 opacity-75" />
+              <span className="relative h-2 w-2 rounded-full bg-red-600" />
+            </span>
+            <span className="text-xs font-black uppercase tracking-wider text-yellow-400">
+              Sincronitzador Automàtic de Temps
+            </span>
+          </div>
+          <h2 className="text-2xl font-black italic uppercase mt-1">Live Timing Extractor</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Vincula la URL del cronometratge oficial (Fotomotor, TiemposOnline, etc.) per extreure temps sense haver d'escriure'ls a mà.
+          </p>
+        </div>
+
+        {/* Toggle Auto-Sync */}
+        <div className="flex items-center gap-3 bg-gray-900 px-4 py-2 rounded-xl border border-gray-800">
+          <label className="flex items-center gap-2 text-xs font-bold cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={autoSync}
+              onChange={(e) => setAutoSync(e.target.checked)}
+              className="h-4 w-4 rounded accent-yellow-400 cursor-pointer"
+            />
+            <span>Auto-sincronitzar cada 2 min</span>
+          </label>
+          {autoSync && (
+            <span className="rounded bg-yellow-400 px-2 py-0.5 font-mono text-[11px] font-black text-gray-950">
+              {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* CONFIGURACIÓ DE RAL·LI I PILOT */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-bold uppercase text-gray-400 mb-1">Ral·li en curs *</label>
+          <select
+            value={selectedEventId}
+            onChange={(e) => setSelectedEventId(e.target.value === "" ? "" : Number(e.target.value))}
+            className="w-full rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-white font-bold focus:border-yellow-400 focus:outline-none"
+          >
+            {events.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold uppercase text-gray-400 mb-1">Pilot a seguir *</label>
+          <select
+            value={selectedDriverId}
+            onChange={(e) => setSelectedDriverId(e.target.value === "" ? "" : Number(e.target.value))}
+            className="w-full rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-white font-bold focus:border-yellow-400 focus:outline-none"
+          >
+            {drivers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+          {selDriver?.number && (
+            <span className="text-[11px] text-yellow-400 font-bold mt-1 block">
+              Dorsal associat: #{selDriver.number}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* SECTOR D'ENTRADA DE FONT: URL O TEXT */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setInputMode("url")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition ${
+              inputMode === "url"
+                ? "bg-yellow-400 text-gray-950 shadow"
+                : "bg-gray-800 text-gray-400 hover:text-white"
+            }`}
+          >
+            🌐 URL Oficial de Temps
+          </button>
+          <button
+            type="button"
+            onClick={() => setInputMode("text")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition ${
+              inputMode === "text"
+                ? "bg-yellow-400 text-gray-950 shadow"
+                : "bg-gray-800 text-gray-400 hover:text-white"
+            }`}
+          >
+            📋 Enganxar taula/text de la web (Pla B)
+          </button>
+        </div>
+
+        {inputMode === "url" ? (
+          <div className="space-y-1">
+            <div className="flex gap-2">
+              <input
+                type="url"
+                placeholder="https://fotomotor.es/... o https://tiemposonline.es/..."
+                value={timingUrl}
+                onChange={(e) => setTimingUrl(e.target.value)}
+                className="flex-1 rounded-lg bg-gray-900 border border-gray-700 px-4 py-2.5 text-sm text-white focus:border-yellow-400 focus:outline-none"
+              />
+              {timingUrl && (
+                <a
+                  href={timingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg bg-gray-800 px-3 py-2.5 text-xs font-bold text-gray-300 hover:text-white hover:bg-gray-700 transition"
+                  title="Obrir enllaç en una pestanya nova"
+                >
+                  ↗ Obrir
+                </a>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-400">
+              Introdueix l'enllaç directe a la pàgina de temps o classificació del ral·li.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <textarea
+              rows={4}
+              placeholder="Copia la taula o text de la web del ral·li i enganxa-la aquí directament..."
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              className="w-full rounded-lg bg-gray-900 border border-gray-700 p-3 text-xs text-white focus:border-yellow-400 focus:outline-none font-mono"
+            />
+            <p className="text-[11px] text-gray-400">
+              Útil si la web oficial utilitza proteccions o bloqueja l'accés directe des del servidor.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* BOTÓ D'ACCSIÓ PRINCIPAL */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => extractTimes(false)}
+          className="rounded-lg bg-yellow-400 px-6 py-2.5 font-black uppercase text-gray-950 hover:bg-yellow-500 transition shadow-lg hover:-translate-y-0.5 disabled:opacity-50 flex items-center gap-2"
+        >
+          {loading ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-950 border-t-transparent" />
+              <span>Analitzant i extreient temps...</span>
+            </>
+          ) : (
+            <>
+              <span>🔍</span>
+              <span>Analitzar i extreure temps ara</span>
+            </>
+          )}
+        </button>
+
+        {extractSource && (
+          <span className="text-xs font-medium text-gray-400">
+            Motor utilitzat: <b className="text-yellow-400">{extractSource}</b>
+          </span>
+        )}
+      </div>
+
+      {/* RESULTATS DETECTATS I TAULA D'IMPORTACIÓ */}
+      {detectedStages.length > 0 && (
+        <div className="rounded-xl bg-gray-900 p-5 border border-gray-800 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-3">
+            <div>
+              <h3 className="text-lg font-black uppercase text-white">
+                Trams detectats ({detectedStages.length})
+              </h3>
+              <p className="text-xs text-gray-400">
+                Selecciona els trams que vols publicar al Rally LIVE
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled={importing}
+              onClick={importStages}
+              className="rounded-lg bg-green-500 px-5 py-2 text-xs font-black uppercase text-gray-950 hover:bg-green-400 transition shadow disabled:opacity-50"
+            >
+              {importing ? "Publicant..." : `📥 Publicar al Rally LIVE (${Object.values(selectedStages).filter(Boolean).length})`}
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            {detectedStages.map((st, idx) => {
+              const alreadyExists = liveRows.some(
+                (r) =>
+                  Number(r.event_id) === Number(selectedEventId) &&
+                  String(r.stage).trim().toUpperCase() === String(st.stage).trim().toUpperCase()
+              );
+
+              return (
+                <div
+                  key={st.stage + idx}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-950 p-3 border border-gray-800/80 hover:border-gray-700 transition"
+                >
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={selectedStages[st.stage] !== false}
+                      onChange={(e) =>
+                        setSelectedStages({ ...selectedStages, [st.stage]: e.target.checked })
+                      }
+                      className="h-4 w-4 rounded accent-yellow-400 cursor-pointer"
+                    />
+                    <div>
+                      <b className="text-sm text-yellow-400">{st.stage}</b>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-300 mt-0.5">
+                        {st.time && <span>⏱️ <b>{st.time}</b></span>}
+                        {st.gap && <span>Dif: <b>{st.gap}</b></span>}
+                        {st.position && <span>Posició: <b>P{st.position}</b></span>}
+                        {st.category_position && <span>Cat: <b>P{st.category_position}</b></span>}
+                      </div>
+                    </div>
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    {alreadyExists ? (
+                      <span className="rounded bg-gray-800 px-2 py-0.5 text-[10px] font-bold uppercase text-gray-300">
+                        Ja al Live (s'actualitzarà)
+                      </span>
+                    ) : (
+                      <span className="rounded bg-green-900/60 border border-green-700 px-2 py-0.5 text-[10px] font-bold uppercase text-green-300">
+                        Nou tram
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =========================================================================
 // COMPONENTS AUXILIARS CMS: Summary i Editor
 // =========================================================================
 
@@ -1843,20 +2317,31 @@ function CmsSummary({ tab, row, relations }: { tab: Tab; row: Row; relations: Re
     const dr = relations.drivers.find((d) => d.id === Number(row.driver_id));
     return (
       <div>
-        <div className="flex items-center gap-2">
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-black uppercase ${
-              row.is_live ? "bg-red-600 text-white animate-pulse" : "bg-gray-200 text-gray-700"
-            }`}
-          >
-            {row.is_live ? "LIVE" : "Finalitzat"}
-          </span>
-          <b className="text-gray-900">{row.stage || "Tram"}</b>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded px-2 py-0.5 text-xs font-black uppercase ${
+                row.is_live ? "bg-red-600 text-white animate-pulse" : "bg-gray-200 text-gray-700"
+              }`}
+            >
+              {row.is_live ? "LIVE" : "Arxivat"}
+            </span>
+            <b className="text-base text-gray-900">{row.stage || "Tram"}</b>
+          </div>
+          {row.time && (
+            <span className="font-mono text-xs font-black bg-gray-900 text-yellow-400 px-2 py-0.5 rounded">
+              ⏱️ {row.time}
+            </span>
+          )}
         </div>
-        <p className="text-xs text-gray-500 mt-1">
-          {ev?.label || "Rally"} · {dr?.label || "Pilot"} · Posició: P{row.position || "—"}
+
+        <p className="text-xs text-gray-600 mt-1 font-medium">
+          {ev?.label || "Rally"} · 👤 <b>{dr?.label || "Pilot"}</b>
+          {row.position ? ` · P${row.position} General` : ""}
+          {row.category_position ? ` · P${row.category_position} Cat.` : ""}
+          {row.gap ? ` (${row.gap})` : ""}
         </p>
-        {row.message && <p className="text-xs text-gray-700 mt-1 italic">{row.message}</p>}
+        {row.message && <p className="text-xs text-gray-700 mt-1.5 italic bg-gray-50 p-2 rounded border">{row.message}</p>}
       </div>
     );
   }
