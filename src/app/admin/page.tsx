@@ -5,7 +5,16 @@ import Link from "next/link";
 import { supabase } from "../../utils/supabase";
 
 type Row = Record<string, any>;
-type Option = { id: number; label: string; eventType?: string; number?: string };
+type Option = {
+  id: number;
+  label: string;
+  eventType?: string;
+  number?: string;
+  carId?: number;
+  role?: string;
+  fiaGroup?: string;
+  startDate?: string;
+};
 type Relations = { events: Option[]; drivers: Option[]; cars: Option[] };
 
 type Tab =
@@ -79,6 +88,8 @@ export default function AdminPage() {
   const [editingItem, setEditingItem] = useState<Row | null>(null);
   const [relations, setRelations] = useState<Relations>({ events: [], drivers: [], cars: [] });
   const [carFilterResults, setCarFilterResults] = useState<number | "all">("all");
+  const [mostrarModalConsolidar, setMostrarModalConsolidar] = useState(false);
+  const [consolidarEventId, setConsolidarEventId] = useState<number | null>(null);
 
   // ESTATS MODAL COTXES
   const [mostrarModalCotxe, setMostrarModalCotxe] = useState(false);
@@ -129,7 +140,7 @@ export default function AdminPage() {
   const loadRelations = useCallback(async () => {
     const [eventsRes, driversRes, carsRes] = await Promise.all([
       supabase.from("rally_events").select("id,name,start_date,event_type").order("start_date", { ascending: false }),
-      supabase.from("drivers").select("id,name,number").order("name"),
+      supabase.from("drivers").select("id,name,number,car_id,role").order("name"),
       supabase.from("rally_cars").select("id,model,fia_group").order("model"),
     ]);
 
@@ -138,15 +149,19 @@ export default function AdminPage() {
         id: Number(e.id),
         label: String(e.name) + (e.start_date ? " · " + e.start_date : ""),
         eventType: e.event_type,
+        startDate: e.start_date,
       })),
       drivers: (driversRes.data || []).map((d: any) => ({
         id: Number(d.id),
         label: String(d.name) + (d.number ? " #" + d.number : ""),
         number: d.number ? String(d.number) : "",
+        carId: d.car_id ? Number(d.car_id) : undefined,
+        role: d.role,
       })),
       cars: (carsRes.data || []).map((c: any) => ({
         id: Number(c.id),
         label: String(c.model) + (c.fia_group ? " · " + c.fia_group : ""),
+        fiaGroup: c.fia_group,
       })),
     });
   }, []);
@@ -673,10 +688,22 @@ export default function AdminPage() {
       alert("No hi ha cap tram actiu en directe per arxivar.");
       return;
     }
-    const confirmed = window.confirm(
-      `Vols finalitzar el ral·li i arxivar els ${activeRows.length} trams actius?\n\nPassaran a l'històric i ja no sortiran com a 'En directe' a la web pública.`
+
+    const choice = window.confirm(
+      `Vols finalitzar el ral·li i arxivar els ${activeRows.length} trams actius?\n\n- Prem ACCEPTAR per obrir l'assistent i publicar els Resultats Oficials a partir dels temps del Live.\n- Prem CANCEL·LAR si només vols arxivar els trams directament sense publicar resultats.`
     );
-    if (!confirmed) return;
+
+    if (choice) {
+      const activeEvId = activeRows[0]?.event_id ? Number(activeRows[0].event_id) : null;
+      setConsolidarEventId(activeEvId);
+      setMostrarModalConsolidar(true);
+      return;
+    }
+
+    const confirmJustArchive = window.confirm(
+      `Segur que vols només arxivar els ${activeRows.length} trams del Live sense generar resultats oficials?`
+    );
+    if (!confirmJustArchive) return;
 
     try {
       const { error: err } = await supabase.from("live_updates").update({ is_live: false }).eq("is_live", true);
@@ -1282,6 +1309,37 @@ export default function AdminPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
+                {activeTab === "live" && (
+                  <button
+                    onClick={() => {
+                      const activeEvId =
+                        cmsRows.find((r) => r.is_live)?.event_id ||
+                        cmsRows[0]?.event_id ||
+                        relations.events[0]?.id ||
+                        null;
+                      setConsolidarEventId(activeEvId ? Number(activeEvId) : null);
+                      setMostrarModalConsolidar(true);
+                    }}
+                    className="rounded-lg bg-yellow-400 px-4 py-2.5 font-black uppercase text-red-700 shadow-sm hover:bg-yellow-500 transition duration-150 hover:-translate-y-0.5 text-xs flex items-center gap-1.5"
+                  >
+                    <span>📊</span>
+                    Consolidar a Resultats
+                  </button>
+                )}
+
+                {activeTab === "results" && (
+                  <button
+                    onClick={() => {
+                      setConsolidarEventId(relations.events[0]?.id || null);
+                      setMostrarModalConsolidar(true);
+                    }}
+                    className="rounded-lg bg-yellow-400 px-4 py-2.5 font-black uppercase text-red-700 shadow-sm hover:bg-yellow-500 transition duration-150 hover:-translate-y-0.5 text-xs flex items-center gap-1.5"
+                  >
+                    <span>📥</span>
+                    Importar des de LIVE
+                  </button>
+                )}
+
                 {activeTab === "live" && cmsRows.some((r) => r.is_live) && (
                   <button
                     onClick={finalitzarRallyLive}
@@ -1291,6 +1349,7 @@ export default function AdminPage() {
                     Finalitzar Ral·li ({cmsRows.filter((r) => r.is_live).length} actius)
                   </button>
                 )}
+
                 {activeTab !== "contacts" && !(activeTab === "profile" && cmsRows.length > 0) && (
                   <button
                     onClick={() => {
@@ -1746,6 +1805,500 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      {mostrarModalConsolidar && (
+        <ConsolidarResultatsModal
+          initialEventId={consolidarEventId}
+          events={relations.events}
+          drivers={relations.drivers}
+          cars={relations.cars}
+          onClose={() => setMostrarModalConsolidar(false)}
+          onSuccess={(msg) => setSuccessMsg(msg)}
+          onError={(msg) => setError(msg)}
+          onRefreshLive={() => carregarCmsRows("live")}
+          onRefreshResults={() => {
+            if (activeTab === "results") carregarCmsRows("results");
+            carregarComptadors();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// =========================================================================
+// MODAL DE CONSOLIDACIÓ: TRASPÀS DE RALLY LIVE A RESULTATS OFICIALS
+// =========================================================================
+
+function ConsolidarResultatsModal({
+  initialEventId,
+  events,
+  drivers,
+  cars,
+  onClose,
+  onSuccess,
+  onError,
+  onRefreshLive,
+  onRefreshResults,
+}: {
+  initialEventId: number | null;
+  events: Option[];
+  drivers: Option[];
+  cars: Option[];
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+  onRefreshLive: () => void;
+  onRefreshResults: () => void;
+}) {
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(
+    initialEventId || (events[0] ? events[0].id : null)
+  );
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [archiveLive, setArchiveLive] = useState(true);
+  const [publishResults, setPublishResults] = useState(true);
+  const [rows, setRows] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!selectedEventId) {
+      setLoading(false);
+      setRows([]);
+      return;
+    }
+
+    let cancel = false;
+    const carregarTrams = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("live_updates")
+          .select("*,drivers(id,name,number,car_id,role)")
+          .eq("event_id", selectedEventId)
+          .order("id", { ascending: true });
+
+        if (error) throw error;
+        if (cancel) return;
+
+        if (!data || data.length === 0) {
+          setRows([]);
+          setLoading(false);
+          return;
+        }
+
+        // Agrupar per pilot (driver_id)
+        const map = new Map<number, any[]>();
+        data.forEach((u) => {
+          const dId = u.driver_id ? Number(u.driver_id) : 0;
+          if (!map.has(dId)) map.set(dId, []);
+          map.get(dId)!.push(u);
+        });
+
+        const extractedRows: any[] = [];
+        for (const [dId, updates] of map.entries()) {
+          const latest = updates[updates.length - 1];
+          const driverObj = drivers.find((d) => d.id === dId) || latest.drivers;
+          const defaultCarId = driverObj?.carId || (cars[0] ? cars[0].id : null);
+          const carObj = cars.find((c) => c.id === defaultCarId);
+          const defaultCat = carObj?.fiaGroup || "Rally";
+          const isDnf = /dnf|abandó|avaria|accident|sortida/i.test(latest.message || "");
+
+          extractedRows.push({
+            driver_id: dId || (drivers[0] ? drivers[0].id : null),
+            driver_name: driverObj?.label || (driverObj?.name ? driverObj.name : "Pilot no assignat"),
+            copilot_id: null,
+            car_id: defaultCarId,
+            category: defaultCat,
+            overall_position: latest.position != null ? String(latest.position) : "",
+            category_position: latest.category_position != null ? String(latest.category_position) : "",
+            time: latest.time || "",
+            gap: latest.gap || "",
+            status: isDnf ? "dnf" : "finished",
+            summary: latest.stage ? `Oficialitzat des del Live (${latest.stage})` : (latest.message || ""),
+            latestStage: latest.stage || "Últim tram",
+            included: true,
+          });
+        }
+
+        setRows(extractedRows);
+      } catch (err: any) {
+        if (!cancel) onError("Error carregant dades del Live: " + err.message);
+      } finally {
+        if (!cancel) setLoading(false);
+      }
+    };
+
+    carregarTrams();
+    return () => {
+      cancel = true;
+    };
+  }, [selectedEventId, drivers, cars, onError]);
+
+  const updateRow = (index: number, patch: Partial<any>) => {
+    setRows((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!selectedEventId) {
+      alert("Selecciona un ral·li vàlid.");
+      return;
+    }
+
+    const selectedRows = rows.filter((r) => r.included && r.driver_id);
+    if (selectedRows.length === 0) {
+      alert("No hi ha cap pilot seleccionat per consolidar.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const ev = events.find((e) => e.id === Number(selectedEventId));
+      const season = ev?.startDate ? new Date(ev.startDate).getFullYear() : new Date().getFullYear();
+
+      let savedCount = 0;
+      for (const row of selectedRows) {
+        const { data: existing } = await supabase
+          .from("rally_results")
+          .select("id")
+          .eq("event_id", Number(selectedEventId))
+          .eq("driver_id", Number(row.driver_id))
+          .maybeSingle();
+
+        const payload = {
+          event_id: Number(selectedEventId),
+          driver_id: Number(row.driver_id),
+          copilot_id: row.copilot_id ? Number(row.copilot_id) : null,
+          car_id: row.car_id ? Number(row.car_id) : null,
+          season: Number(season),
+          category: row.category ? String(row.category).trim() : null,
+          overall_position: row.overall_position !== "" ? Number(row.overall_position) : null,
+          category_position: row.category_position !== "" ? Number(row.category_position) : null,
+          status: row.status || "finished",
+          time: row.time ? String(row.time).trim() : null,
+          gap: row.gap ? String(row.gap).trim() : null,
+          summary: row.summary ? String(row.summary).trim() : null,
+          published: publishResults,
+        };
+
+        if (existing) {
+          const { error: updErr } = await supabase
+            .from("rally_results")
+            .update(payload)
+            .eq("id", existing.id);
+          if (updErr) throw updErr;
+        } else {
+          const { error: insErr } = await supabase
+            .from("rally_results")
+            .insert(payload);
+          if (insErr) throw insErr;
+        }
+        savedCount++;
+      }
+
+      if (archiveLive) {
+        await supabase
+          .from("live_updates")
+          .update({ is_live: false })
+          .eq("event_id", Number(selectedEventId));
+      }
+
+      onRefreshLive();
+      onRefreshResults();
+      onSuccess(
+        `S'han publicat correctament ${savedCount} resultats oficials a la web, flota i pilots!`
+      );
+      onClose();
+    } catch (err: any) {
+      onError("Error consolidant els resultats: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto backdrop-blur-sm">
+      <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl my-8 border border-gray-200">
+        <div className="flex justify-between items-start border-b pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-yellow-400 px-2 py-0.5 text-xs font-black uppercase text-red-950">
+                Live &rarr; Resultats Oficials
+              </span>
+            </div>
+            <h2 className="text-2xl font-black italic uppercase text-gray-900 mt-1">
+              Consolidar Resultats Oficials
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Genera automàticament els resultats definitius a partir de l'últim tram registrat al Live de cada pilot.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-900 font-black text-2xl transition"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Selector de ral·li */}
+        <div className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex-1 min-w-[240px]">
+            <label className="block text-xs font-black uppercase text-gray-700 mb-1">
+              Ral·li de referència:
+            </label>
+            <select
+              value={selectedEventId || ""}
+              onChange={(e) => setSelectedEventId(Number(e.target.value))}
+              className="w-full border rounded-lg px-3 py-2 text-sm font-bold text-gray-900 bg-white"
+            >
+              {events.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="text-right">
+            <span className="text-xs text-gray-500 font-bold block">Estat del Live:</span>
+            <span className="text-xs font-black uppercase text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full inline-block mt-0.5">
+              {rows.length} {rows.length === 1 ? "pilot detectat" : "pilots detectats"}
+            </span>
+          </div>
+        </div>
+
+        {/* Llistat de pilots detectats */}
+        <div className="mt-6">
+          {loading ? (
+            <div className="p-12 text-center text-gray-500 font-bold animate-pulse">
+              Carregant trams i agrupant temps finals per pilot...
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="p-10 text-center rounded-xl border-2 border-dashed border-gray-300">
+              <p className="font-bold text-gray-700">
+                Aquest ral·li no té cap tram registrat a la secció Rally LIVE.
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Pots introduir temps des del Sincronitzador Automàtic o triar un altre ral·li.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+              {rows.map((row, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-xl border p-4 transition ${
+                    row.included
+                      ? "border-gray-300 bg-white shadow-sm"
+                      : "border-gray-200 bg-gray-50 opacity-60"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={row.included}
+                        onChange={(e) => updateRow(idx, { included: e.target.checked })}
+                        className="h-4 w-4 rounded text-red-600 focus:ring-red-500"
+                      />
+                      <span className="text-base font-black italic uppercase text-gray-900">
+                        {row.driver_name}
+                      </span>
+                    </label>
+
+                    <div className="flex items-center gap-2 text-xs font-bold">
+                      <span className="text-gray-500">Últim tram:</span>
+                      <span className="bg-yellow-100 text-red-800 px-2 py-0.5 rounded font-black">
+                        {row.latestStage}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    {/* Vehicle */}
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Cotxe assignat:</label>
+                      <select
+                        value={row.car_id || ""}
+                        onChange={(e) => {
+                          const cid = Number(e.target.value);
+                          const cObj = cars.find((c) => c.id === cid);
+                          updateRow(idx, {
+                            car_id: cid,
+                            category: cObj?.fiaGroup || row.category,
+                          });
+                        }}
+                        className="w-full border rounded-lg p-2 font-bold bg-white text-gray-900"
+                      >
+                        {cars.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Copilot */}
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Copilot (opcional):</label>
+                      <select
+                        value={row.copilot_id || ""}
+                        onChange={(e) =>
+                          updateRow(idx, {
+                            copilot_id: e.target.value ? Number(e.target.value) : null,
+                          })
+                        }
+                        className="w-full border rounded-lg p-2 font-bold bg-white text-gray-900"
+                      >
+                        <option value="">Sense copilot / No definit</option>
+                        {drivers
+                          .filter((d) => d.id !== row.driver_id)
+                          .map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.label}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {/* Posició General */}
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Pos. General:</label>
+                      <input
+                        type="number"
+                        placeholder="Ex: 4"
+                        value={row.overall_position}
+                        onChange={(e) => updateRow(idx, { overall_position: e.target.value })}
+                        className="w-full border rounded-lg p-2 font-black text-gray-900"
+                      />
+                    </div>
+
+                    {/* Posició Categoria */}
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Pos. Classe:</label>
+                      <input
+                        type="number"
+                        placeholder="Ex: 1"
+                        value={row.category_position}
+                        onChange={(e) => updateRow(idx, { category_position: e.target.value })}
+                        className="w-full border rounded-lg p-2 font-black text-gray-900"
+                      />
+                    </div>
+
+                    {/* Temps Total */}
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Temps Total:</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 1:12:45.3"
+                        value={row.time}
+                        onChange={(e) => updateRow(idx, { time: e.target.value })}
+                        className="w-full border rounded-lg p-2 font-mono font-bold text-gray-900"
+                      />
+                    </div>
+
+                    {/* Diferència */}
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Diferència:</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: +18.2s"
+                        value={row.gap}
+                        onChange={(e) => updateRow(idx, { gap: e.target.value })}
+                        className="w-full border rounded-lg p-2 font-mono font-bold text-gray-900"
+                      />
+                    </div>
+
+                    {/* Categoria */}
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Categoria:</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Rally4"
+                        value={row.category}
+                        onChange={(e) => updateRow(idx, { category: e.target.value })}
+                        className="w-full border rounded-lg p-2 font-bold text-gray-900"
+                      />
+                    </div>
+
+                    {/* Estat */}
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Estat de cursa:</label>
+                      <select
+                        value={row.status}
+                        onChange={(e) => updateRow(idx, { status: e.target.value })}
+                        className="w-full border rounded-lg p-2 font-bold bg-white text-gray-900"
+                      >
+                        <option value="finished">Classificat / Finalitzat</option>
+                        <option value="dnf">DNF (Abandó / Avaria)</option>
+                        <option value="dsq">DSQ (Desqualificat)</option>
+                        <option value="dns">DNS (No va sortir)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Opcions addicionals i botons d'acció */}
+        <div className="mt-6 border-t pt-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-gray-700 bg-gray-50 p-3 rounded-xl border">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={archiveLive}
+                onChange={(e) => setArchiveLive(e.target.checked)}
+                className="h-4 w-4 rounded text-red-600 focus:ring-red-500"
+              />
+              <span>Arxivar els trams del Live (marcar la cursa com a finalitzada a la web)</span>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={publishResults}
+                onChange={(e) => setPublishResults(e.target.checked)}
+                className="h-4 w-4 rounded text-red-600 focus:ring-red-500"
+              />
+              <span>Publicar directament a la web (visible a Resultats, Cotxe i Pilot)</span>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-lg border px-5 py-2.5 text-xs font-black uppercase text-gray-700 hover:bg-gray-100 transition disabled:opacity-50"
+            >
+              Cancel·lar
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || rows.filter((r) => r.included).length === 0}
+              className="rounded-lg bg-red-600 px-6 py-2.5 text-xs font-black uppercase text-white shadow hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Publicant resultats...
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  Confirmar i Publicar Resultats ({rows.filter((r) => r.included).length})
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
