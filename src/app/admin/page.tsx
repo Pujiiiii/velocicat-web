@@ -24,6 +24,7 @@ export default function AdminPage() {
   });
   const [arxiusFotos, setArxiusFotos] = useState<FileList | null>(null);
   const [pujantFotos, setPujantFotos] = useState(false);
+  const [errorModalCotxe, setErrorModalCotxe] = useState("");
 
   // ESTATS MODAL ESDEVENIMENTS
   const [mostrarModalEvent, setMostrarModalEvent] = useState(false);
@@ -56,20 +57,22 @@ export default function AdminPage() {
   }, [session, isAdmin]);
 
   // --- FLOTA ---
-  const carregarCotxes = async () => {
+  async function carregarCotxes() {
     const { data } = await supabase.from('rally_cars').select('*').order('model');
     if (data) setCotxes(data);
-  };
+  }
   const obrirModalNouCotxe = () => {
     setCotxeEditant(null);
     setFormCotxe({model:"",fia_group:"",daily_rate:"0",sprint_rate:"0",rentable_rally:true,rentable_sprint:false,status:"disponible",ownership:"escuderia",photos:[]});
     setArxiusFotos(null);
+    setErrorModalCotxe("");
     setMostrarModalCotxe(true);
   };
   const obrirModalEditarCotxe = (cotxe: any) => {
     setCotxeEditant(cotxe);
     setFormCotxe({ model: cotxe.model, fia_group: cotxe.fia_group, daily_rate: String(cotxe.daily_rate ?? 0), sprint_rate: String(cotxe.sprint_rate ?? 0), rentable_rally: cotxe.rentable_rally ?? true, rentable_sprint: cotxe.rentable_sprint ?? false, status: cotxe.status, ownership: cotxe.ownership || "escuderia", photos: cotxe.photos || [] });
     setArxiusFotos(null);
+    setErrorModalCotxe("");
     setMostrarModalCotxe(true);
   };
   const desenllacarFoto = (index: number) => {
@@ -90,37 +93,58 @@ export default function AdminPage() {
     }
     setFormCotxe({ ...formCotxe, photos: novesFotos });
   };
-  const pujarFotosImgBB = async () => {
+  const pujarFotosStorage = async (): Promise<string[] | null> => {
     if (!arxiusFotos || arxiusFotos.length === 0) return [];
+    setErrorModalCotxe("");
+
+    // Validació prèvia de mida
+    for (let i = 0; i < arxiusFotos.length; i++) {
+      if (arxiusFotos[i].size > 8 * 1024 * 1024) {
+        setErrorModalCotxe(`La imatge "${arxiusFotos[i].name}" supera el límit permès de 8 MB.`);
+        return null;
+      }
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setErrorModalCotxe("Cal iniciar sessió per poder pujar imatges.");
+      return null;
+    }
+
     const urls: string[] = [];
- 
-    
     for (let i = 0; i < arxiusFotos.length; i++) {
       const formData = new FormData();
       formData.append('image', arxiusFotos[i]);
-      // S'ha eliminat l'expiració perquè les fotos siguin PERMANENTS
-      
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) throw new Error('Cal iniciar sessió per pujar imatges.');
-        const res = await fetch('/api/upload-image', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` }, body: formData });
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: formData,
+        });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "No s'ha pogut pujar la imatge.");
-        if (typeof data?.url !== "string") throw new Error("Resposta d'upload invàlida.");
+        if (typeof data?.url !== "string") throw new Error("Resposta del servidor d'imatges no vàlida.");
         urls.push(data.url);
       } catch (e) {
         console.error("Error pujant imatge", e);
-        setError(e instanceof Error ? e.message : "Error desconegut pujant una imatge.");
+        setErrorModalCotxe(e instanceof Error ? e.message : "Error desconegut pujant una imatge.");
+        return null;
       }
     }
     return urls;
   };
   const guardarCotxe = async () => {
     if (!formCotxe.model.trim() || !formCotxe.fia_group.trim() || (formCotxe.ownership === "escuderia" && (Number(formCotxe.daily_rate) < 0 || Number(formCotxe.sprint_rate) < 0 || !Number.isFinite(Number(formCotxe.daily_rate)) || !Number.isFinite(Number(formCotxe.sprint_rate))))) {
-      alert("Omple el model i el grup FIA, i indica preus vàlids."); return;
+      setErrorModalCotxe("Omple el model i el grup FIA, i indica preus vàlids.");
+      return;
     }
     setPujantFotos(true);
-    const novesUrls = await pujarFotosImgBB();
+    const novesUrls = await pujarFotosStorage();
+    if (novesUrls === null) {
+      setPujantFotos(false);
+      return;
+    }
     const fotosFinals = [...formCotxe.photos, ...novesUrls];
     const dadesAGuardar = { ...formCotxe, daily_rate: formCotxe.ownership === "particular" ? 0 : Number(formCotxe.daily_rate || 0), sprint_rate: formCotxe.ownership === "particular" ? 0 : Number(formCotxe.sprint_rate || 0), rentable_rally: formCotxe.ownership === "escuderia" && formCotxe.rentable_rally, rentable_sprint: formCotxe.ownership === "escuderia" && formCotxe.rentable_sprint, photos: fotosFinals };
     
@@ -130,7 +154,7 @@ export default function AdminPage() {
 
     setPujantFotos(false);
     if (result.error) {
-      setError("No s'ha pogut guardar el vehicle: " + result.error.message);
+      setErrorModalCotxe("No s'ha pogut guardar el vehicle: " + result.error.message);
       return;
     }
     setMostrarModalCotxe(false);
@@ -156,10 +180,10 @@ export default function AdminPage() {
   };
 
   // --- ESDEVENIMENTS ---
-  const carregarEsdeveniments = async () => {
+  async function carregarEsdeveniments() {
     const { data } = await supabase.from('rally_events').select('*').order('start_date', { ascending: true });
     if (data) setEsdeveniments(data);
-  };
+  }
   const obrirModalNouEvent = () => {
     setEventEditant(null);
     setFormEvent({ name: "", start_date: "", end_date: "", event_type: "rally", assigned_cars: [] });
@@ -203,13 +227,13 @@ export default function AdminPage() {
   };
 
   // --- RESERVES DE LLOGUER ---
-  const carregarReserves = async () => {
+  async function carregarReserves() {
     const { data } = await supabase
       .from('event_bookings')
       .select('*, customers(name, phone), rally_cars(model), rally_events(name, start_date)')
       .order('id', { ascending: false });
     if (data) setReserves(data);
-  };
+  }
   const actualitzarEstatReserva = async (id: number, nouEstat: string) => {
     const { error } = await supabase.from('event_bookings').update({ status: nouEstat }).eq('id', id);
     if (error) {
@@ -284,12 +308,35 @@ export default function AdminPage() {
   // --- RENDERITZAT PANELL ---
   return (
     <div className="min-h-screen bg-gray-100 pb-12">
-      <header className="bg-gray-900 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
-        <div className="text-xl font-black italic uppercase">VelociCAT <span className="text-yellow-400">Admin</span></div><a href="/admin/content" className="ml-4 rounded bg-yellow-400 px-3 py-2 text-xs font-black uppercase text-red-700">CMS Escuderia</a>
-        <button onClick={handleLogout} className="px-4 py-2 bg-red-600 hover:bg-red-700 font-bold rounded text-sm uppercase">Tancar Sessió</button>
+      <header className="bg-gray-950 text-white p-4 shadow-md flex flex-wrap justify-between items-center gap-4 sticky top-0 z-50">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="text-xl font-black italic uppercase">
+            VELOCI<span className="text-yellow-400">CAT</span> Admin
+          </div>
+          <nav className="flex items-center gap-2">
+            <span className="rounded bg-yellow-400 px-3 py-1.5 text-xs font-black uppercase text-red-700 shadow-sm">
+              Flota, Rallys & Reserves
+            </span>
+            <a
+              href="/admin/content"
+              className="rounded bg-gray-800 px-3 py-1.5 text-xs font-black uppercase text-gray-200 hover:bg-gray-700 hover:text-white transition-colors"
+            >
+              CMS Contingut Escuderia →
+            </a>
+          </nav>
+        </div>
+        <button onClick={handleLogout} className="px-4 py-2 bg-red-600 hover:bg-red-700 font-bold rounded text-sm uppercase transition-colors">
+          Tancar Sessió
+        </button>
       </header>
 
-      <main className="max-w-7xl mx-auto p-6 mt-6">
+      <main className="max-w-7xl mx-auto p-6 mt-4">
+        {error && (
+          <div className="mb-6 p-4 rounded-xl bg-red-100 border border-red-300 text-red-800 flex justify-between items-center font-bold">
+            <span>{error}</span>
+            <button onClick={() => setError("")} className="text-red-600 hover:text-red-800 ml-4 font-black">✕</button>
+          </div>
+        )}
         
         {/* FILA SUPERIOR: FLOTA */}
         <div className="mb-8">
@@ -454,6 +501,11 @@ export default function AdminPage() {
                 <label className="block text-sm font-bold text-gray-700 uppercase mb-2">Afegir Noves Fotos</label>
                 <input type="file" multiple accept="image/*" onChange={(e) => setArxiusFotos(e.target.files)} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-bold file:bg-yellow-400 file:text-red-700 hover:file:bg-yellow-500 cursor-pointer" />
               </div>
+              {errorModalCotxe && (
+                <p className="mt-2 text-red-600 font-bold text-sm bg-red-50 p-3 rounded border border-red-200">
+                  {errorModalCotxe}
+                </p>
+              )}
             </div>
             <div className="flex gap-3 mt-8">
               <button onClick={() => setMostrarModalCotxe(false)} disabled={pujantFotos} className="flex-1 bg-gray-200 font-bold uppercase py-3 rounded">Cancel·lar</button>
