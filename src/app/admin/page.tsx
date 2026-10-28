@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../../utils/supabase";
+import EventRecommendationsModal from "../../components/admin/EventRecommendationsModal";
 
 type Row = Record<string, any>;
 type Option = {
@@ -90,6 +91,8 @@ export default function AdminPage() {
   const [carFilterResults, setCarFilterResults] = useState<number | "all">("all");
   const [mostrarModalConsolidar, setMostrarModalConsolidar] = useState(false);
   const [consolidarEventId, setConsolidarEventId] = useState<number | null>(null);
+  const [recomanacionsEvent, setRecomanacionsEvent] = useState<any | null>(null);
+  const [allContacts, setAllContacts] = useState<any[]>([]);
 
   // ESTATS MODAL COTXES
   const [mostrarModalCotxe, setMostrarModalCotxe] = useState(false);
@@ -193,6 +196,11 @@ export default function AdminPage() {
     if (resRes.count !== null) setResultatsTotalCount(resRes.count);
   }, []);
 
+  const carregarContactes = useCallback(async () => {
+    const { data } = await supabase.from("contact_messages").select("*").order("created_at", { ascending: false });
+    if (data) setAllContacts(data);
+  }, []);
+
   // Carregar CMS Rows
   const carregarCmsRows = useCallback(async (tabName: Tab) => {
     const table = cmsTableOf[tabName];
@@ -237,10 +245,11 @@ export default function AdminPage() {
       carregarCotxes();
       carregarEsdeveniments();
       carregarReserves();
+      carregarContactes();
       carregarComptadors();
       loadRelations();
     }
-  }, [session, isAdmin, carregarCotxes, carregarEsdeveniments, carregarReserves, carregarComptadors, loadRelations]);
+  }, [session, isAdmin, carregarCotxes, carregarEsdeveniments, carregarReserves, carregarContactes, carregarComptadors, loadRelations]);
 
   // Canvi de pestanya CMS
   useEffect(() => {
@@ -1162,19 +1171,33 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 flex gap-2 pt-3 border-t">
+                  <div className="mt-6 flex flex-col gap-2 pt-3 border-t">
                     <button
-                      onClick={() => obrirModalEditarEvent(ev)}
-                      className="flex-1 rounded-lg bg-gray-900 px-3 py-2 text-xs font-black uppercase text-white hover:bg-gray-800 transition"
+                      onClick={() => setRecomanacionsEvent(ev)}
+                      className="w-full rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 text-gray-950 font-black uppercase text-xs px-3.5 py-2.5 shadow-sm transition flex items-center justify-center gap-2 border border-yellow-300 hover:shadow-md"
                     >
-                      Editar Cursa
+                      <span>🎯 Recomanacions de Lloguer (IA)</span>
+                      {ev.assigned_cars?.length ? (
+                        <span className="rounded-full bg-gray-950/10 px-2 py-0.5 text-[10px] font-black">
+                          {ev.assigned_cars.length} {ev.assigned_cars.length === 1 ? "vehicle" : "vehicles"}
+                        </span>
+                      ) : null}
                     </button>
-                    <button
-                      onClick={() => eliminarEsdeveniment(ev.id)}
-                      className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs font-black uppercase text-red-700 hover:bg-red-100 transition"
-                    >
-                      Eliminar
-                    </button>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => obrirModalEditarEvent(ev)}
+                        className="flex-1 rounded-lg bg-gray-900 px-3 py-2 text-xs font-black uppercase text-white hover:bg-gray-800 transition"
+                      >
+                        Editar Cursa
+                      </button>
+                      <button
+                        onClick={() => eliminarEsdeveniment(ev.id)}
+                        className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs font-black uppercase text-red-700 hover:bg-red-100 transition"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1818,6 +1841,19 @@ export default function AdminPage() {
           onRefreshResults={() => {
             if (activeTab === "results") carregarCmsRows("results");
             carregarComptadors();
+          }}
+        />
+      )}
+      {recomanacionsEvent && (
+        <EventRecommendationsModal
+          event={recomanacionsEvent}
+          cars={cotxes}
+          bookings={reserves}
+          contacts={allContacts}
+          onClose={() => setRecomanacionsEvent(null)}
+          onGoToBookings={() => {
+            setRecomanacionsEvent(null);
+            setActiveTab("bookings");
           }}
         />
       )}
